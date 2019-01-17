@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/nlopes/slack"
 )
 
 // SlackToken Authentication token from slack
@@ -13,6 +15,8 @@ var SlackToken = os.Getenv("SLACK_TOKEN")
 
 // VerificationToken Verification token from slack
 var VerificationToken = os.Getenv("VERIFICATION_TOKEN")
+
+var api = slack.New(SlackToken)
 
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
@@ -34,6 +38,8 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Fprintf(w, "Strange input: %s", e)
+		var shit slack.PostMessageParameters
+		api.PostMessage("test", e.(string), shit)
 	}
 
 	if !verifyToken(event.Token) {
@@ -47,7 +53,6 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// api := slack.New(SlackToken)
 	// user, err := api.GetUserInfo(event.User)
 	// if err != nil {
 	// 	fmt.Fprintf(w, "%s", err)
