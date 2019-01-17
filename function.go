@@ -27,7 +27,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		fmt.Print("Not a challenge request")
+		fmt.Printf("Not a challenge request. err=%s", err)
 	} else {
 		if !verifyToken(event.Token) {
 			fmt.Fprint(w, "Invalid token")
@@ -44,7 +44,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	var messageEvent slack.MessageEvent
 
 	if err := json.NewDecoder(r.Body).Decode(&messageEvent); err != nil {
-		fmt.Print("Not a message event")
+		fmt.Printf("Not a message event. err=%s", err)
 	} else {
 		fmt.Print(messageEvent)
 		fmt.Fprint(w, messageEvent)
@@ -65,5 +65,6 @@ func verifyToken(token string) bool {
 		return true
 	}
 
+	fmt.Print("Not a valid token")
 	return false
 }
