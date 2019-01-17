@@ -17,6 +17,8 @@ var VerificationToken = os.Getenv("VERIFICATION_TOKEN")
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, r.Body)
+
 	var event struct {
 		Token     string `json:"token"`
 		Challenge string `json:"challenge"`
