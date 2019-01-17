@@ -38,5 +38,5 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
+	fmt.Fprintf(w, "ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 }
