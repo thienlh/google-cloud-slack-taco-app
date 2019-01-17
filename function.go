@@ -34,9 +34,9 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	api := slack.New(os.Getenv("SLACK_TOKEN"))
 	user, err := api.GetUserInfo(d.User)
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		fmt.Fprintf(w, "%s", err)
 		return
 	}
 
-	fmt.Fprintf(w, "ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
+	fmt.Fprintf(w, "ID: %s, Fullname: %s, Email: %s", user.ID, user.Profile.RealName, user.Profile.Email)
 }
