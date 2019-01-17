@@ -27,39 +27,37 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		fmt.Fprint(w, "Invalid input")
-
-		var e interface{}
-		err := json.NewDecoder(r.Body).Decode(&e)
-
-		if err != nil {
-			fmt.Fprintf(w, "Invalid input: %s", err)
+		fmt.Print("Not a challenge request")
+	} else {
+		if !verifyToken(event.Token) {
+			fmt.Fprint(w, "Invalid token")
 			return
 		}
 
-		fmt.Fprintf(w, "Strange input: %s", e)
-		var shit slack.PostMessageParameters
-		api.PostMessage("test", e.(string), shit)
+		if event.Challenge != "" {
+			// Respond to Slack event subscription URL verification challenge
+			fmt.Fprintf(w, "{'challenge': %s}", event.Challenge)
+			return
+		}
 	}
 
-	if !verifyToken(event.Token) {
-		fmt.Fprint(w, "Invalid token")
-		return
+	var messageEvent slack.MessageEvent
+
+	if err := json.NewDecoder(r.Body).Decode(&messageEvent); err != nil {
+		fmt.Print("Not a message event")
+	} else {
+		fmt.Print(messageEvent)
+		fmt.Fprint(w, messageEvent)
+		var parameters slack.PostMessageParameters
+		channelID, timestamp, err := api.PostMessage("test", messageEvent.Text, parameters)
+
+		if err != nil {
+			fmt.Printf("%s\n", err)
+			return
+		}
+
+		fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 	}
-
-	if event.Challenge != "" {
-		// Respond to Slack event subscription URL verification challenge
-		fmt.Fprintf(w, "{'challenge': %s}", event.Challenge)
-		return
-	}
-
-	// user, err := api.GetUserInfo(event.User)
-	// if err != nil {
-	// 	fmt.Fprintf(w, "%s", err)
-	// 	return
-	// }
-
-	// fmt.Fprintf(w, "ID: %s, Fullname: %s, Email: %s", user.ID, user.Profile.RealName, user.Profile.Email)
 }
 
 func verifyToken(token string) bool {
