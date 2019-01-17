@@ -17,8 +17,6 @@ var VerificationToken = os.Getenv("VERIFICATION_TOKEN")
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, r.Body)
-
 	var event struct {
 		Token     string `json:"token"`
 		Challenge string `json:"challenge"`
@@ -26,7 +24,16 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 		fmt.Fprint(w, "Invalid input")
-		return
+
+		var e interface{}
+		err := json.NewDecoder(r.Body).Decode(&e)
+
+		if err != nil {
+			fmt.Fprintf(w, "Invalid input: %s", err)
+			return
+		}
+
+		fmt.Fprintf(w, "Strange input: %s", e)
 	}
 
 	if !verifyToken(event.Token) {
@@ -40,13 +47,8 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if d.User == "" {
-	// 	fmt.Fprint(w, "Hello World!")
-	// 	return
-	// }
-
 	// api := slack.New(SlackToken)
-	// user, err := api.GetUserInfo(d.User)
+	// user, err := api.GetUserInfo(event.User)
 	// if err != nil {
 	// 	fmt.Fprintf(w, "%s", err)
 	// 	return
