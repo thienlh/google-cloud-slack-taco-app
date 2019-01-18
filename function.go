@@ -57,7 +57,6 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		user, err := api.GetUserInfo(m.User)
 		if err != nil {
 			fmt.Printf("Error getting user %s info %s\n", m.User, err)
-			return
 		}
 
 		fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
