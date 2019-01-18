@@ -58,16 +58,18 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			api.PostMessage(ev.Channel, "Yes, hello.", parameters)
 		case *slackevents.MessageEvent:
 			fmt.Printf("MessageEvent")
+
+			if ev.SubType == "bot_message" {
+				fmt.Printf("Bot message. Return.")
+				return
+			}
+
 			user, err := api.GetUserInfo(ev.User)
 			if err != nil {
 				fmt.Printf("Error getting user %s info %s\n", ev.User, err)
-			}
-			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
-
-			if user.IsBot {
-				fmt.Printf("Message from bot %s. Return.", user.Profile.RealName)
 				return
 			}
+			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 			//	Get the emoji
 			r := regexp.MustCompile(`:[thac\-mo]*:`)
@@ -75,8 +77,27 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			var numOfMatches = len(matchedEmojies)
 			fmt.Printf("%d matched :thac-mo: found", numOfMatches)
 
+			// Get the receiver
+			rMentioned := regexp.MustCompile(`<@[\w]*>`)
+			receivers := rMentioned.FindAllString(ev.Text, -1)
+			fmt.Printf("Matched receivers %s", receivers)
+
+			if len(receivers) == 0 {
+				fmt.Printf("No receiver. Return.")
+				return
+			}
+
+			var receiverID = receivers[0]
+
+			receiver, err := api.GetUserInfo(receiverID[2 : len(receiverID)-1])
+			if err != nil {
+				fmt.Printf("Error getting receiver %s info %s\n", ev.User, err)
+				return
+			}
+			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
+
 			var parameters slack.PostMessageParameters
-			api.PostMessage(ev.Channel, fmt.Sprintf("Hello %d time(s) %s", numOfMatches, user.Profile.RealName), parameters)
+			api.PostMessage(ev.Channel, fmt.Sprintf("%s has received %d :thac-mo: from %s", receiver.Profile.RealName, numOfMatches, user.Profile.RealName), parameters)
 		}
 	}
 }
