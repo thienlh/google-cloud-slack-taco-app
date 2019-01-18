@@ -52,9 +52,11 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
+			fmt.Printf("AppMentionEvent")
 			var parameters slack.PostMessageParameters
 			api.PostMessage(ev.Channel, "Yes, hello.", parameters)
 		case *slackevents.MessageEvent:
+			fmt.Printf("MessageEvent")
 			user, err := api.GetUserInfo(ev.User)
 			if err != nil {
 				fmt.Printf("Error getting user %s info %s\n", ev.User, err)
