@@ -20,6 +20,9 @@ var SlackToken = os.Getenv("SLACK_TOKEN")
 // SlackVerificationToken Verification token from slack
 var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 
+// EmojiName name of the emoji to use
+var EmojiName = fmt.Sprintf(":%s:", os.Getenv("EMOJI_NAME"))
+
 var api = slack.New(SlackToken)
 
 var parameters slack.PostMessageParameters
@@ -77,7 +80,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			r := regexp.MustCompile(`:[thac\-mo]*:`)
 			matchedEmojies := r.FindAllString(ev.Text, -1)
 			var numOfMatches = len(matchedEmojies)
-			fmt.Printf("%d matched :thac-mo: found", numOfMatches)
+			fmt.Printf("%d matched %s found", numOfMatches, EmojiName)
 
 			// Get the receiver
 			rMentioned := regexp.MustCompile(`<@[\w]*>`)
@@ -94,7 +97,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 			if user.ID == receiverID {
 				fmt.Printf("UserID = receiverID = %s", user.ID)
-				api.PostMessage(ev.Channel, "Come on! It wouldn't be fair if you can give yourself :thac-mo:!", parameters)
+				api.PostMessage(ev.Channel, "Come on! It wouldn't be fair if you can give yourself %s!", parameters)
 				return
 			}
 
@@ -105,7 +108,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			}
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
-			api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d :thac-mo: from <@%s>", receiver.ID, numOfMatches, user.Profile.ID), parameters)
+			api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
 		}
 	}
 }
