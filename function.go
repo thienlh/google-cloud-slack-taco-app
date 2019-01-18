@@ -4,7 +4,6 @@ package p
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -16,8 +15,8 @@ import (
 // SlackToken Authentication token from slack
 var SlackToken = os.Getenv("SLACK_TOKEN")
 
-// VerificationToken Verification token from slack
-var VerificationToken = os.Getenv("VERIFICATION_TOKEN")
+// SlackVerificationToken Verification token from slack
+var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 
 var api = slack.New(SlackToken)
 
@@ -27,7 +26,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
 	body := buf.String()
-	eventsAPIEvent, e := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: "TOKEN"}))
+	eventsAPIEvent, e := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: SlackVerificationToken}))
 	if e != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -41,13 +40,4 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text")
 		w.Write([]byte(r.Challenge))
 	}
-}
-
-func verifyToken(token string) bool {
-	if token == VerificationToken {
-		return true
-	}
-
-	fmt.Print("Not a valid token")
-	return false
 }
