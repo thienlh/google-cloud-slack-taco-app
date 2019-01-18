@@ -77,7 +77,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 			//	Get the emoji
-			r := regexp.MustCompile(`:(thac\-mo){1}:`)
+			r := regexp.MustCompile(fmt.Sprintf(":(%s){1}:", EmojiName))
 			matchedEmojies := r.FindAllString(ev.Text, -1)
 			var numOfMatches = len(matchedEmojies)
 			fmt.Printf("%d matched %s found", numOfMatches, EmojiName)
