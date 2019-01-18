@@ -58,11 +58,11 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
-			fmt.Printf("AppMentionEvent")
+			fmt.Println("AppMentionEvent")
 			var parameters slack.PostMessageParameters
 			api.PostMessage(ev.Channel, "Yes, hello.", parameters)
 		case *slackevents.MessageEvent:
-			fmt.Printf("MessageEvent")
+			fmt.Println("MessageEvent")
 
 			if ev.SubType == "bot_message" {
 				fmt.Printf("Bot message. Return.")
@@ -77,10 +77,15 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 			//	Get the emoji
-			r := regexp.MustCompile(`:[thac\-mo]*:`)
+			r := regexp.MustCompile(`:(thac\-mo){1}:`)
 			matchedEmojies := r.FindAllString(ev.Text, -1)
 			var numOfMatches = len(matchedEmojies)
 			fmt.Printf("%d matched %s found", numOfMatches, EmojiName)
+
+			if numOfMatches == 0 {
+				fmt.Printf("No %s found. Return.", EmojiName)
+				return
+			}
 
 			// Get the receiver
 			rMentioned := regexp.MustCompile(`<@[\w]*>`)
@@ -97,7 +102,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 			if user.ID == receiverID {
 				fmt.Printf("UserID = receiverID = %s", user.ID)
-				api.PostMessage(ev.Channel, "Come on! It wouldn't be fair if you can give yourself %s!", parameters)
+				api.PostMessage(ev.Channel, fmt.Sprintf("Come on! It wouldn't be fair if you can give yourself %s!", EmojiName), parameters)
 				return
 			}
 
@@ -107,6 +112,12 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
+
+			if receiver.IsBot {
+				fmt.Printf("Receiver %s is bot. Return", receiver.Profile.RealName)
+				api.PostMessage(ev.Channel, fmt.Sprintf("You can not give bot %s!", EmojiName), parameters)
+				return
+			}
 
 			api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
 		}
