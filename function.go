@@ -33,6 +33,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to parse event. Error %s\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	fmt.Printf("Event=%s\n", eventsAPIEvent)
 
 	if eventsAPIEvent.Type == slackevents.URLVerification {
 		var r *slackevents.ChallengeResponse
