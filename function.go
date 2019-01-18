@@ -58,6 +58,8 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 	}
+
+	fmt.Printf("Strange event [%s]. Ignore.", r.Body)
 }
 
 func verifyToken(token string) bool {
