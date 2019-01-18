@@ -64,7 +64,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 			var parameters slack.PostMessageParameters
-			api.PostMessage(ev.Channel, fmt.Sprintf("Hello %s!", user.Name), parameters)
+			api.PostMessage(ev.Channel, fmt.Sprintf("Hello %s %s", user.Profile.RealName, ev.Icons), parameters)
 		}
 	}
 }
