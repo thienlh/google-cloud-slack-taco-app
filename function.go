@@ -105,7 +105,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			}
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
-			api.PostMessage(ev.Channel, fmt.Sprintf("%s has received %d :thac-mo: from %s", receiver.Profile.RealName, numOfMatches, user.Profile.RealName), parameters)
+			api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d :thac-mo: from <@%s>", receiver.ID, numOfMatches, user.Profile.ID), parameters)
 		}
 	}
 }
