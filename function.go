@@ -48,19 +48,21 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
 		fmt.Printf("A message found %s\n", eventsAPIEvent)
-		var m *slackevents.MessageEvent
-		err := json.Unmarshal([]byte(body), &m)
-		if err != nil {
-			fmt.Printf("Unable to unmarshal message. Error %s\n", err)
-		}
+		innerEvent := eventsAPIEvent.InnerEvent
 
-		user, err := api.GetUserInfo(m.User)
-		if err != nil {
-			fmt.Printf("Error getting user %s info %s\n", m.User, err)
-		}
+		switch ev := innerEvent.Data.(type) {
+		case *slackevents.AppMentionEvent:
+			var parameters slack.PostMessageParameters
+			api.PostMessage(ev.Channel, "Yes, hello.", parameters)
+		case *slackevents.MessageEvent:
+			user, err := api.GetUserInfo(ev.User)
+			if err != nil {
+				fmt.Printf("Error getting user %s info %s\n", ev.User, err)
+			}
 
-		fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
-		var parameters slack.PostMessageParameters
-		api.PostMessage(m.Channel, fmt.Sprintf("Hello %s!", user.Name), parameters)
+			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
+			var parameters slack.PostMessageParameters
+			api.PostMessage(ev.Channel, fmt.Sprintf("Hello %s!", user.Name), parameters)
+		}
 	}
 }
