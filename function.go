@@ -46,7 +46,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(r.Challenge))
 	}
 
-	if eventsAPIEvent.Type == slackevents.Message {
+	if eventsAPIEvent.Type == slackevents.CallbackEvent {
 		fmt.Printf("A message found %s\n", eventsAPIEvent)
 		var m *slackevents.MessageEvent
 		err := json.Unmarshal([]byte(body), &m)
