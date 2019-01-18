@@ -21,6 +21,12 @@ var api = slack.New(SlackToken)
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
+	var body interface{}
+	json.NewDecoder(r.Body).Decode(&body)
+
+	fmt.Printf("Event [%s]", body)
+
+	// Maybe it's a challenge request
 	var event struct {
 		Token     string `json:"token"`
 		Challenge string `json:"challenge"`
@@ -41,6 +47,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//  Maybe it's a message request
 	var messageEvent slack.MessageEvent
 
 	if err := json.NewDecoder(r.Body).Decode(&messageEvent); err != nil {
@@ -58,11 +65,6 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 	}
-
-	var body interface{}
-	json.NewDecoder(r.Body).Decode(&body)
-
-	fmt.Printf("Strange event [%s]. Ignore.", body)
 }
 
 func verifyToken(token string) bool {
