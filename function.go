@@ -22,6 +22,8 @@ var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 
 var api = slack.New(SlackToken)
 
+var parameters slack.PostMessageParameters
+
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
@@ -87,16 +89,22 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			var receiverID = receivers[0]
+			var receiverRaw = receivers[0]
+			var receiverID = receiverRaw[2 : len(receiverRaw)-1]
 
-			receiver, err := api.GetUserInfo(receiverID[2 : len(receiverID)-1])
+			if user.ID == receiverID {
+				fmt.Printf("UserID = receiverID = %s", user.ID)
+				api.PostMessage(ev.Channel, "Come on! It wouldn't be fair if you can give yourself :thac-mo:!", parameters)
+				return
+			}
+
+			receiver, err := api.GetUserInfo(receiverID)
 			if err != nil {
 				fmt.Printf("Error getting receiver %s info %s\n", ev.User, err)
 				return
 			}
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
-			var parameters slack.PostMessageParameters
 			api.PostMessage(ev.Channel, fmt.Sprintf("%s has received %d :thac-mo: from %s", receiver.Profile.RealName, numOfMatches, user.Profile.RealName), parameters)
 		}
 	}
