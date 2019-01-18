@@ -4,6 +4,7 @@ package p
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -26,8 +27,10 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
 	body := buf.String()
-	eventsAPIEvent, e := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: SlackVerificationToken}))
-	if e != nil {
+	fmt.Printf("Body=%s\n", body)
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: SlackVerificationToken}))
+	if err != nil {
+		fmt.Printf("Unable to parse event. Error %s\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -35,9 +38,14 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		var r *slackevents.ChallengeResponse
 		err := json.Unmarshal([]byte(body), &r)
 		if err != nil {
+			fmt.Printf("Unable to unmarshal slack URL verification challenge. Error %s\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Header().Set("Content-Type", "text")
 		w.Write([]byte(r.Challenge))
+	}
+
+	if eventsAPIEvent.Type == slackevents.Message {
+		fmt.Printf("A message found %s\n", eventsAPIEvent.InnerEvent.Data)
 	}
 }
