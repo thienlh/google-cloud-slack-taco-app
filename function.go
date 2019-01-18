@@ -2,10 +2,13 @@
 package p
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/nlopes/slack/slackevents"
 
 	"github.com/nlopes/slack"
 )
@@ -21,49 +24,22 @@ var api = slack.New(SlackToken)
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
-	var body interface{}
-	json.NewDecoder(r.Body).Decode(&body)
-
-	fmt.Printf("Event [%s]", body)
-
-	// Maybe it's a challenge request
-	var event struct {
-		Token     string `json:"token"`
-		Challenge string `json:"challenge"`
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	body := buf.String()
+	eventsAPIEvent, e := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: "TOKEN"}))
+	if e != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		fmt.Printf("Not a challenge request. err=%s", err)
-	} else {
-		if !verifyToken(event.Token) {
-			fmt.Fprint(w, "Invalid token")
-			return
-		}
-
-		if event.Challenge != "" {
-			// Respond to Slack event subscription URL verification challenge
-			fmt.Fprintf(w, "{'challenge': %s}", event.Challenge)
-			return
-		}
-	}
-
-	//  Maybe it's a message request
-	var messageEvent slack.MessageEvent
-
-	if err := json.NewDecoder(r.Body).Decode(&messageEvent); err != nil {
-		fmt.Printf("Not a message event. err=%s", err)
-	} else {
-		fmt.Print(messageEvent)
-		fmt.Fprint(w, messageEvent)
-		var parameters slack.PostMessageParameters
-		channelID, timestamp, err := api.PostMessage("test", messageEvent.Text, parameters)
-
+	if eventsAPIEvent.Type == slackevents.URLVerification {
+		var r *slackevents.ChallengeResponse
+		err := json.Unmarshal([]byte(body), &r)
 		if err != nil {
-			fmt.Printf("%s\n", err)
-			return
+			w.WriteHeader(http.StatusInternalServerError)
 		}
-
-		fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
+		w.Header().Set("Content-Type", "text")
+		w.Write([]byte(r.Challenge))
 	}
 }
 
