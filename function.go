@@ -46,6 +46,19 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if eventsAPIEvent.Type == slackevents.Message {
-		fmt.Printf("A message found %s\n", eventsAPIEvent.InnerEvent.Data)
+		fmt.Printf("A message found %s\n", eventsAPIEvent)
+		var m *slackevents.MessageEvent
+		err := json.Unmarshal([]byte(body), &m)
+		if err != nil {
+			fmt.Printf("Unable to unmarshal message. Error %s\n", err)
+		}
+
+		user, err := api.GetUserInfo(m.User)
+		if err != nil {
+			fmt.Printf("Error getting user info %s\n", err)
+			return
+		}
+
+		fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 	}
 }
