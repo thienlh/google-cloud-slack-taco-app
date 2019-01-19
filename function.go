@@ -24,7 +24,8 @@ var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 // EmojiName name of the emoji to use
 var EmojiName = fmt.Sprintf(":%s:", os.Getenv("EMOJI_NAME"))
 
-var api = slack.New(SlackToken)
+// Api Slack API
+var Api = slack.New(SlackToken)
 
 var parameters slack.PostMessageParameters
 
@@ -64,7 +65,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		case *slackevents.AppMentionEvent:
 			fmt.Println("AppMentionEvent")
 			var parameters slack.PostMessageParameters
-			api.PostMessage(ev.Channel, "Yes, hello.", parameters)
+			Api.PostMessage(ev.Channel, "Yes, hello.", parameters)
 		case *slackevents.MessageEvent:
 			fmt.Println("MessageEvent")
 
@@ -73,7 +74,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			user, err := api.GetUserInfo(ev.User)
+			user, err := Api.GetUserInfo(ev.User)
 			if err != nil {
 				fmt.Printf("Error getting user %s info %s\n", ev.User, err)
 				return
@@ -107,11 +108,11 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 			if user.ID == receiverID {
 				fmt.Printf("UserID = receiverID = %s\n", user.ID)
-				api.PostMessage(ev.Channel, fmt.Sprintf("Come on! It wouldn't be fair if you can give yourself %s!", EmojiName), parameters)
+				Api.PostMessage(ev.Channel, fmt.Sprintf("Come on! It wouldn't be fair if you can give yourself %s!", EmojiName), parameters)
 				return
 			}
 
-			receiver, err := api.GetUserInfo(receiverID)
+			receiver, err := Api.GetUserInfo(receiverID)
 			if err != nil {
 				fmt.Printf("Error getting receiver %s info %s\n", ev.User, err)
 				return
@@ -121,11 +122,12 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			// TODO: Uncomment this
 			//if receiver.IsBot {
 			//	fmt.Printf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
-			//	api.PostMessage(ev.Channel, fmt.Sprintf("You can not give bot %s!", EmojiName), parameters)
+			//	Api.PostMessage(ev.Channel, fmt.Sprintf("You can not give bot %s!", EmojiName), parameters)
 			//	return
 			//}
 
-			api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
+			Api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
+			main()
 		}
 	}
 }
