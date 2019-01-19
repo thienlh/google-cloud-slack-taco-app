@@ -1,5 +1,5 @@
 // Package p contains an HTTP Cloud Function.
-package main
+package p
 
 import (
 	"bytes"
