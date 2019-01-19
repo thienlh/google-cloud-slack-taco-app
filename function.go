@@ -79,10 +79,11 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if ev.PreviousMessage.TimeStamp == ev.TimeStamp {
-				fmt.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
-				return
-			}
+			// TODO: Try to handle duplicate messages
+			//if ev.PreviousMessage.TimeStamp == ev.TimeStamp {
+			//	fmt.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
+			//	return
+			//}
 
 			user, err := Api.GetUserInfo(ev.User)
 			if err != nil {
