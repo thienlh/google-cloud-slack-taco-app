@@ -74,6 +74,16 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			if ev.IsEdited() {
+				fmt.Printf("Edited message. Return.\n")
+				return
+			}
+
+			if ev.PreviousMessage.TimeStamp == ev.TimeStamp {
+				fmt.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
+				return
+			}
+
 			user, err := Api.GetUserInfo(ev.User)
 			if err != nil {
 				fmt.Printf("Error getting user %s info %s\n", ev.User, err)
@@ -126,16 +136,17 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			//	return
 			//}
 
-			Api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
-
 			//	Timestamp, Giver, Receiver, Quantity
-			var timestamp = ev.EventTimeStamp
+			var time = toDate(ev.TimeStamp)
 			var giverName = user.Profile.RealName
 			var receiverName = receiver.Profile.RealName
 			var quantity = numOfMatches
+			var message = ev.Text
 
-			valueToWrite := []interface{}{timestamp, giverName, receiverName, quantity}
+			valueToWrite := []interface{}{time, giverName, receiverName, quantity, message}
 			write(valueToWrite)
+
+			Api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
 		}
 	}
 }
