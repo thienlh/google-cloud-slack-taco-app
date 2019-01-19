@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/nlopes/slack/slackevents"
 
@@ -27,6 +28,8 @@ var api = slack.New(SlackToken)
 
 var parameters slack.PostMessageParameters
 
+const EventSubtypeBotMessage = "bot_message"
+
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
@@ -34,6 +37,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	buf.ReadFrom(r.Body)
 	body := buf.String()
 	fmt.Printf("Body=%s\n", body)
+
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: SlackVerificationToken}))
 	if err != nil {
 		fmt.Printf("Unable to parse event. Error %s\n", err)
@@ -64,8 +68,8 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 		case *slackevents.MessageEvent:
 			fmt.Println("MessageEvent")
 
-			if ev.SubType == "bot_message" {
-				fmt.Printf("Bot message. Return.")
+			if ev.SubType == EventSubtypeBotMessage {
+				fmt.Printf("Bot message. Return.\n")
 				return
 			}
 
@@ -77,23 +81,24 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 			//	Get the emoji
-			r := regexp.MustCompile(fmt.Sprintf(":(%s){1}:", EmojiName))
-			matchedEmojies := r.FindAllString(ev.Text, -1)
-			var numOfMatches = len(matchedEmojies)
-			fmt.Printf("%d matched %s found", numOfMatches, EmojiName)
+			emojiRegEx := strings.Replace(fmt.Sprintf("(%s){1}", EmojiName), "-", "\\-", -1)
+			r := regexp.MustCompile(emojiRegEx)
+			matchedEmoji := r.FindAllString(ev.Text, -1)
+			var numOfMatches = len(matchedEmoji)
+			fmt.Printf("%d matched %s found\n", numOfMatches, EmojiName)
 
 			if numOfMatches == 0 {
-				fmt.Printf("No %s found. Return.", EmojiName)
+				fmt.Printf("No %s found. Return.\n", EmojiName)
 				return
 			}
 
 			// Get the receiver
 			rMentioned := regexp.MustCompile(`<@[\w]*>`)
 			receivers := rMentioned.FindAllString(ev.Text, -1)
-			fmt.Printf("Matched receivers %s", receivers)
+			fmt.Printf("Matched receivers %s\n", receivers)
 
 			if len(receivers) == 0 {
-				fmt.Printf("No receiver. Return.")
+				fmt.Printf("No receiver. Return.\n")
 				return
 			}
 
@@ -101,7 +106,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			var receiverID = receiverRaw[2 : len(receiverRaw)-1]
 
 			if user.ID == receiverID {
-				fmt.Printf("UserID = receiverID = %s", user.ID)
+				fmt.Printf("UserID = receiverID = %s\n", user.ID)
 				api.PostMessage(ev.Channel, fmt.Sprintf("Come on! It wouldn't be fair if you can give yourself %s!", EmojiName), parameters)
 				return
 			}
@@ -113,11 +118,12 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 			}
 			fmt.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
-			if receiver.IsBot {
-				fmt.Printf("Receiver %s is bot. Return", receiver.Profile.RealName)
-				api.PostMessage(ev.Channel, fmt.Sprintf("You can not give bot %s!", EmojiName), parameters)
-				return
-			}
+			// TODO: Uncomment this
+			//if receiver.IsBot {
+			//	fmt.Printf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
+			//	api.PostMessage(ev.Channel, fmt.Sprintf("You can not give bot %s!", EmojiName), parameters)
+			//	return
+			//}
 
 			api.PostMessage(ev.Channel, fmt.Sprintf("<@%s> has received %d %s from <@%s>", receiver.ID, numOfMatches, EmojiName, user.ID), parameters)
 		}
