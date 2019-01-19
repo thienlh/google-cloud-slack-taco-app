@@ -1,4 +1,4 @@
-package p
+package main
 
 import (
 	"encoding/json"
@@ -15,6 +15,11 @@ import (
 import (
 	"golang.org/x/net/context"
 )
+
+const SpreadsheetID = "1xacCTpzgkWktCR8vIlYeG9aSn6Fx7KO9QiMs3WTDawQ"
+
+// SheetsService Google Sheets service
+var SheetsService = getService()
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
@@ -71,29 +76,29 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func main() {
+// Get the google sheets service
+func getService() *sheets.Service {
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
-
 	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets.readonly")
+	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets")
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
 	client := getClient(config)
-
 	srv, err := sheets.New(client)
 	if err != nil {
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
+	return srv
+}
 
-	// Prints the names and majors of students in a sample spreadsheet:
-	// https://docs.google.com/spreadsheets/d/1xacCTpzgkWktCR8vIlYeG9aSn6Fx7KO9QiMs3WTDawQ/edit
-	spreadsheetId := "1xacCTpzgkWktCR8vIlYeG9aSn6Fx7KO9QiMs3WTDawQ"
+// Read and print sample data from the sheet
+func readExamples() {
 	readRange := "Class Data!A2:E"
-	resp, err := srv.Spreadsheets.Values.Get(spreadsheetId, readRange).Do()
+	resp, err := SheetsService.Spreadsheets.Values.Get(SpreadsheetID, readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
 	}
@@ -106,5 +111,17 @@ func main() {
 			// Print columns A and E, which correspond to indices 0 and 4.
 			fmt.Printf("%s, %s\n", row[0], row[4])
 		}
+	}
+}
+
+func write(value []interface{}) {
+	writeRange := "A2"
+	var valueRange sheets.ValueRange
+
+	valueRange.Values = append(valueRange.Values, value)
+
+	_, err := SheetsService.Spreadsheets.Values.Append(SpreadsheetID, writeRange, &valueRange).ValueInputOption("RAW").Do()
+	if err != nil {
+		log.Fatalf("Unable to write data %v to sheet. %v", value, err)
 	}
 }
