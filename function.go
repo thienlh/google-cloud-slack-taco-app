@@ -36,6 +36,12 @@ const SelfGivingResponseMessagePattern = "Bạn không thể tự tặng bản t
 const ReceivedResponseMessagePattern = "<@%s> đã nhận được %d %s từ <@%s>"
 const GivingToBotResponseMessagePattern = "Bạn không thể cho bot %s!"
 
+type GivingSummary struct {
+	giver string
+	date  string
+	total int
+}
+
 //	Handle handle every requests from Slack
 func Handle(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
@@ -132,7 +138,16 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			return
 		}
 
-		go readFrom("Pivot Table 1!A3:D")
+		summaries := readFrom("Pivot Table 1!A3:D")
+
+		for _, row := range summaries {
+			if len(row) < 4 {
+				break
+			}
+
+			giver := GivingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(int)}
+			fmt.Printf("GiveringSummary: %v", giver)
+		}
 
 		//	Write to Google sheets and post message
 		go writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
