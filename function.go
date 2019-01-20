@@ -132,6 +132,8 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			return
 		}
 
+		go readFrom("Pivot Table 1!A3:D")
+
 		//	Write to Google sheets and post message
 		go writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
 		go reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
