@@ -162,15 +162,15 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 	for _, row := range summaries {
 		//	Skip Grand Total row
 		if strings.Contains(fmt.Sprintf("%s %s %s %s", row[0], row[1], row[2], row[3]), "Grand Total") {
-			log.Printf("Row %v contains Grand Total. Return.\n", row)
+			log.Printf("Row %v contains Grand Total. Skip this row.\n", row)
 			break
 		}
 
 		giver := GivingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(string)}
 		log.Printf("Giver: %v, today: %v\n", giver, Today)
 
-		if user.Name == giver.Name && giver.Date == Today {
-			log.Printf("Today record for user %v found.", user.Name)
+		if user.Profile.RealName == giver.Name && giver.Date == Today {
+			log.Printf("Today record for user %v found.", user.Profile.RealName)
 
 			total, err := strconv.Atoi(giver.Total)
 			if err != nil {
