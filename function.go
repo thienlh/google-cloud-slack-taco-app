@@ -32,7 +32,6 @@ var API = slack.New(SlackToken)
 //	SlackPostMessageParameters Just a dummy variable so that Slack won't complaint
 var SlackPostMessageParameters slack.PostMessageParameters
 
-const EventSubtypeBotMessage = "bot_message"
 const AppMentionResponseMessage = "Chào anh chị em e-pilot :thuan: :mama-thuy:"
 const SelfGivingResponseMessagePattern = "Bạn không thể tự tặng mình %s! Sao không thử làm gì đó giúp ích cho team xem sao :strong:"
 const ReceivedResponseMessagePattern = "<@%s> đã nhận được %d %s từ <@%s>"
@@ -65,6 +64,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		err := handleCallbackEvent(eventsAPIEvent)
 		if err != nil {
 			log.Fatalf("Error handling Slack callback event  with error %v. Return", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -84,7 +84,6 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 	case *slackevents.AppMentionEvent:
 		log.Println("[AppMentionEvent]")
 		postSlackMessage(ev.Channel, AppMentionResponseMessage)
-		return nil
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
 
@@ -106,7 +105,6 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
 		if numOfEmojiMatches == 0 {
 			log.Fatalf("No %s found in message %s. Return.\n", EmojiName, ev.Text)
-			return errors.New("slack: emoji not found in message")
 		}
 
 		// Find the receiver
@@ -114,14 +112,12 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 		if receiverID == "" {
 			log.Fatalf("No receiver found. Return.\n")
-			return errors.New("thac-mo: no receiver found in message")
 		}
 
 		//	Won't accept users giving for themself
 		if user.ID == receiverID {
 			log.Fatalf("UserID = receiverID = %s\n", user.ID)
 			postSlackMessage(ev.Channel, fmt.Sprintf(SelfGivingResponseMessagePattern, EmojiName))
-			return errors.New("thac-mo: user is also receiver")
 		}
 
 		//	Get receiver information
@@ -135,20 +131,16 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		if receiver.IsBot {
 			log.Panicf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
 			postSlackMessage(ev.Channel, fmt.Sprintf(GivingToBotResponseMessagePattern, EmojiName))
-			return errors.New("thac-mo: won't handle giving to bot")
 		}
 
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
 		//postSlackMessage(ev.Channel, fmt.Sprintf(ReceivedResponseMessagePattern, receiver.ID, numOfEmojiMatches, EmojiName, user.ID))
 		refToMessage := slack.NewRefToMessage(ev.Channel, ev.TimeStamp)
-		err = API.AddReaction(":thuan:", refToMessage)
+		err = API.AddReaction("thuan", refToMessage)
 		if err != nil {
 			log.Panicf("Unable to react to comment %v with error %v", refToMessage, err)
-			return errors.New("slack: unable to react to comment")
 		}
-
-		return nil
 	}
 
 	log.Panicf("Strange message event %v", eventsAPIEvent)
@@ -219,8 +211,8 @@ func responseToSlackChallenge(body string, w http.ResponseWriter) {
 
 //	verifyMessageEvent Check whether the message event is valid for processing
 func verifyMessageEvent(ev slackevents.MessageEvent) bool {
-	if ev.SubType == EventSubtypeBotMessage {
-		log.Printf("Bot message. Return.\n")
+	if ev.SubType != "" {
+		log.Printf("Event with subtype=%v. Return.\n", ev.SubType)
 		return false
 	}
 
