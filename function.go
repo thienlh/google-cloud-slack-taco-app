@@ -36,10 +36,7 @@ var API = slack.New(SlackToken)
 //	SlackPostMessageParameters Just a dummy variable so that Slack won't complaint
 var SlackPostMessageParameters slack.PostMessageParameters
 
-const AppMentionResponseMessage = "Chào anh chị em e-pilot :thuan: :mama-thuy:"
-const SelfGivingResponseMessagePattern = "Bạn không thể tự tặng bản thân %s!"
-const ReceivedResponseMessagePattern = "<@%s> đã nhận được %d %s từ <@%s>"
-const GivingToBotResponseMessagePattern = "Bạn không thể cho bot %s!"
+var AppMentionResponseMessage = fmt.Sprintf("Chào anh chị em e-pilot :thuan: :mama-thuy: :tung: Xem BXH tại %s", SpeadsheetURL)
 
 type GivingSummary struct {
 	Name  string
@@ -171,21 +168,19 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 			log.Printf("Today record for user %v found.", user.Profile.RealName)
 			found = true
 
-			total, err := strconv.Atoi(giver.Total)
+			givenToday, err := strconv.Atoi(giver.Total)
 			if err != nil {
 				log.Panicf("%v can not be convert to int\n", giver.Total)
 				return
 			}
 
-			if total >= MaxEveryday {
-				log.Printf("User %s already gave %d today (maximum allowed: %d). Return.\n", giver.Name, total, MaxEveryday)
+			if givenToday >= MaxEveryday {
+				log.Printf("User %s already gave %d today (maximum allowed: %d). Return.\n", giver.Name, givenToday, MaxEveryday)
+				go reactToSlackMessage(event.Channel, event.TimeStamp, "no_good")
 				return
 			}
 
-			canBeGivenToday := MaxEveryday - total
-			log.Printf("Can be given today: %d, MaxEveryday: %d,"+
-				" total given today: %d, number of emoji matched: %d\n",
-				canBeGivenToday, MaxEveryday, total, numOfEmojiMatches)
+			canBeGivenToday := MaxEveryday - givenToday
 			var toGive int
 
 			if canBeGivenToday >= numOfEmojiMatches {
@@ -196,7 +191,9 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 				toGive = canBeGivenToday
 			}
 
-			log.Printf("To give: %d\n", toGive)
+			log.Printf("Can be given today: %d, MaxEveryday: %d,"+
+				" Given today: %d, number of emoji matched: %d\n",
+				canBeGivenToday, MaxEveryday, givenToday, numOfEmojiMatches)
 
 			if toGive > 0 {
 				go writeToGoogleSheets(event, user, receiver, toGive)

@@ -16,7 +16,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-const SpreadsheetID = "1xacCTpzgkWktCR8vIlYeG9aSn6Fx7KO9QiMs3WTDawQ"
+var SpreadsheetID = os.Getenv("SPREADSHEET_ID")
+var SpeadsheetURL = os.Getenv("SPREADSHEET_URL")
 
 // SheetsService Google Sheets service
 var SheetsService = getService()
