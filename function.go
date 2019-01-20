@@ -39,7 +39,7 @@ const GivingToBotResponseMessagePattern = "Bạn không thể cho bot %s!"
 type GivingSummary struct {
 	giver string
 	date  string
-	total int
+	total string
 }
 
 //	Handle handle every requests from Slack
@@ -141,12 +141,13 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		summaries := readFrom("Pivot Table 1!A3:D")
 
 		for _, row := range summaries {
+			//	Skip Grand Total row
 			if len(row) < 4 {
 				break
 			}
 
-			giver := GivingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(int)}
-			fmt.Printf("GiveringSummary: %v", giver)
+			giver := GivingSummary{row[0].(string), fmt.Sprintf("%v %v", row[1], row[2]), row[3].(string)}
+			go postSlackMessage(ev.Channel, fmt.Sprint(giver))
 		}
 
 		//	Write to Google sheets and post message
