@@ -99,6 +99,10 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			log.Printf("No %v found in message %v. Return.\n", EmojiName, ev.Text)
 			return
 		}
+		//	Never insert more than 5 at once
+		if numOfEmojiMatches > 5 {
+			numOfEmojiMatches = 5
+		}
 
 		// Find the receiver
 		receiverID := findReceiverIDIn(ev.Text)
@@ -141,6 +145,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		summaries := readFrom("Pivot Table 1!A3:D")
 
 		for _, row := range summaries {
+			fmt.Printf("Row: %v with length: %v", row, len(row))
 			//	Skip Grand Total row
 			if len(row) < 4 {
 				break
