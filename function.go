@@ -64,8 +64,8 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	case slackevents.CallbackEvent:
 		err := handleCallbackEvent(eventsAPIEvent)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
 			log.Fatalf("Error handling Slack callback event  with error %v. Return", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -83,11 +83,11 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 	switch ev := innerEvent.Data.(type) {
 	case *slackevents.AppMentionEvent:
-		log.Println("AppMentionEvent")
+		log.Println("[AppMentionEvent]")
 		postSlackMessage(ev.Channel, AppMentionResponseMessage)
 		return nil
 	case *slackevents.MessageEvent:
-		log.Println("MessageEvent")
+		log.Println("[MessageEvent]")
 
 		if !verifyMessageEvent(*ev) {
 			return errors.New("slack: not a valid message to process")
@@ -133,16 +133,21 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		}
 		log.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
-		// TODO: Uncomment this
-		//if receiver.IsBot {
-		//	log.Panicf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
-		//	postSlackMessage(ev.Channel, fmt.Sprintf(GivingToBotResponseMessagePattern, EmojiName))
-		//	return
-		//}
+		if receiver.IsBot {
+			log.Panicf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
+			postSlackMessage(ev.Channel, fmt.Sprintf(GivingToBotResponseMessagePattern, EmojiName))
+			return errors.New("thac-mo: won't handle giving to bot")
+		}
 
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
-		postSlackMessage(ev.Channel, fmt.Sprintf(ReceivedResponseMessagePattern, receiver.ID, numOfEmojiMatches, EmojiName, user.ID))
+		//postSlackMessage(ev.Channel, fmt.Sprintf(ReceivedResponseMessagePattern, receiver.ID, numOfEmojiMatches, EmojiName, user.ID))
+		refToMessage := slack.NewRefToMessage(ev.Channel, ev.TimeStamp)
+		err = API.AddStar(ev.Channel, refToMessage)
+		if err != nil {
+			log.Panicf("Unable to star comment %v", refToMessage)
+			return errors.New("slack: unable to star comment")
+		}
 
 		return nil
 	}
@@ -231,6 +236,7 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 	//	log.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
 	//	return false
 	//}
+	log.Printf("Previous message: %v", ev.PreviousMessage)
 	return true
 }
 
