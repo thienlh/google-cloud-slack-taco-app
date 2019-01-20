@@ -65,7 +65,6 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		err := handleCallbackEvent(eventsAPIEvent)
 		if err != nil {
 			log.Fatalf("Error handling Slack callback event  with error %v. Return", err)
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -145,8 +144,8 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		refToMessage := slack.NewRefToMessage(ev.Channel, ev.TimeStamp)
 		err = API.AddReaction(":thuan:", refToMessage)
 		if err != nil {
-			log.Panicf("Unable to react to comment %v", refToMessage)
-			return errors.New("slack: unable to star comment")
+			log.Panicf("Unable to react to comment %v with error %v", refToMessage, err)
+			return errors.New("slack: unable to react to comment")
 		}
 
 		return nil
