@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nlopes/slack"
 )
@@ -25,6 +27,8 @@ var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 var EmojiName = fmt.Sprintf(":%s:", os.Getenv("EMOJI_NAME"))
 var EmojiNameLength = len(EmojiName)
 
+var MaxEveryday, _ = strconv.Atoi(os.Getenv("MAX_EVERYDAY"))
+
 //	API Slack API
 var API = slack.New(SlackToken)
 
@@ -37,9 +41,9 @@ const ReceivedResponseMessagePattern = "<@%s> đã nhận được %d %s từ <@
 const GivingToBotResponseMessagePattern = "Bạn không thể cho bot %s!"
 
 type GivingSummary struct {
-	giver string
-	date  string
-	total string
+	Name  string
+	Date  string
+	Total string
 }
 
 //	Handle handle every requests from Slack
@@ -142,30 +146,66 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			return
 		}
 
-		summaries := readFrom("Pivot Table 1!A3:D")
-
-		for _, row := range summaries {
-			fmt.Printf("Row: %v with length: %v", row, len(row))
-			//	Skip Grand Total row
-			if len(row) < 4 {
-				break
-			}
-
-			giver := GivingSummary{row[0].(string), fmt.Sprintf("%v %v", row[1], row[2]), row[3].(string)}
-			go postSlackMessage(ev.Channel, fmt.Sprint(giver))
-		}
-
-		//	Write to Google sheets and post message
-		go writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
-		go reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
+		go restrictNumOfEmojiToday(ev, user, receiver, numOfEmojiMatches)
 		go reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 	}
 
 	log.Printf("Strange message event %v", eventsAPIEvent)
 }
 
+func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numOfEmojiMatches int) {
+	summaries := readFrom("Pivot Table 1!A3:D")
+
+	for _, row := range summaries {
+		//	Skip Grand Total row
+		if strings.Contains(fmt.Sprintf("%s %s %s %s", row[0], row[1], row[2], row[3]), "Grand Total") {
+			log.Printf("Row %v contains Grand Total. Return.\n", row)
+			break
+		}
+
+		giver := GivingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(string)}
+		today := timeIn("Vietnam", time.Now()).Format("Jan-02 2006")
+		log.Printf("Giver: %v, today: %v\n", giver, today)
+
+		if user.Name == giver.Name && giver.Date == today {
+			log.Printf("Today record for user %v found.", user.Name)
+
+			total, err := strconv.Atoi(giver.Total)
+			if err != nil {
+				log.Panicf("%v can not be convert to int\n", giver.Total)
+				return
+			}
+
+			if total >= MaxEveryday {
+				log.Printf("User %s already gave %d today (maximum allowed: %d). Return.\n", giver.Name, total, MaxEveryday)
+				return
+			}
+
+			canBeGivenToday := MaxEveryday - total
+			log.Printf("Can be given today: %d, MaxEveryday: %d,"+
+				" total given today: %d, number of emoji matched: %d\n",
+				canBeGivenToday, MaxEveryday, total, numOfEmojiMatches)
+			var toGive int
+
+			if canBeGivenToday >= numOfEmojiMatches {
+				toGive = numOfEmojiMatches
+			}
+
+			if canBeGivenToday < numOfEmojiMatches {
+				toGive = canBeGivenToday
+			}
+
+			log.Printf("To give: %d\n", toGive)
+
+			go writeToGoogleSheets(event, user, receiver, toGive)
+			go reactToSlackMessage(event.Channel, event.TimeStamp, getNumberEmoji(toGive))
+		}
+
+	}
+}
+
 //	writeToGoogleSheets Write value to Google Sheets using gsheets.go
-func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, receiver *slack.User, numOfEmojiMatches int) {
+func writeToGoogleSheets(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, toGive int) {
 	//	Timestamp, Giver, Receiver, Quantity, Text, Date time
 	//	format from Slack: 1547921475.007300
 	var timestamp = timeIn("Vietnam", toDate(strings.Split(event.TimeStamp, ".")[0]))
@@ -173,7 +213,7 @@ func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, recei
 	var datetime = timestamp.Format("01/02/2006 15:04:05")
 	var giverName = user.Profile.RealName
 	var receiverName = receiver.Profile.RealName
-	var quantity = numOfEmojiMatches
+	var quantity = toGive
 	var message = event.Text
 	valueToWrite := []interface{}{timestamp, datetime, giverName, receiverName, quantity, message}
 	log.Printf("Value to write %v", valueToWrite)
