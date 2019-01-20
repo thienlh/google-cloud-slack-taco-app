@@ -143,9 +143,9 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
 		//postSlackMessage(ev.Channel, fmt.Sprintf(ReceivedResponseMessagePattern, receiver.ID, numOfEmojiMatches, EmojiName, user.ID))
 		refToMessage := slack.NewRefToMessage(ev.Channel, ev.TimeStamp)
-		err = API.AddStar(ev.Channel, refToMessage)
+		err = API.AddReaction(":thuan:", refToMessage)
 		if err != nil {
-			log.Panicf("Unable to star comment %v", refToMessage)
+			log.Panicf("Unable to react to comment %v", refToMessage)
 			return errors.New("slack: unable to star comment")
 		}
 
@@ -236,7 +236,6 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 	//	log.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
 	//	return false
 	//}
-	log.Printf("Previous message: %v", ev.PreviousMessage)
 	return true
 }
 
