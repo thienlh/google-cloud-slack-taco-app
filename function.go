@@ -90,6 +90,14 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 			return errors.New("slack: not a valid message to process")
 		}
 
+		//	Get the emoji in the message
+		//	return if no exact emoji found
+		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
+		if numOfEmojiMatches == 0 {
+			log.Fatalf("No %s found in message %s. Return.\n", EmojiName, ev.Text)
+			return nil
+		}
+
 		//	Get user who posted the message
 		//	return if error
 		user, err := API.GetUserInfo(ev.User)
@@ -98,14 +106,6 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 			return errors.New("slack: unable to get user information")
 		}
 		log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
-
-		//	Get the emoji in the message
-		//	return if no exact emoji found
-		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
-		if numOfEmojiMatches == 0 {
-			log.Fatalf("No %s found in message %s. Return.\n", EmojiName, ev.Text)
-			return nil
-		}
 
 		// Find the receiver
 		receiverID := findReceiverIDIn(ev.Text)
@@ -145,6 +145,8 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 			log.Panicf("Unable to react to comment %v with error %v", refToMessage, err)
 			return nil
 		}
+
+		return nil
 	}
 
 	log.Panicf("Strange message event %v", eventsAPIEvent)
