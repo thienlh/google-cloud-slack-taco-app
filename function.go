@@ -47,15 +47,16 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body := buf.String()
-	log.Printf("Body=%s\n", body)
+	log.Printf("Body: %v\n", body)
+	log.Printf("Header: %v", r.Header)
 
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: SlackVerificationToken}))
 	if err != nil {
-		log.Printf("Unable to parse event. Error %s\n", err)
+		log.Printf("Unable to parse event. Error %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Event=%s\n", eventsAPIEvent)
+	log.Printf("Event: %v\n", eventsAPIEvent)
 
 	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
@@ -75,9 +76,9 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 
 //	handleCallbackEvent Handle Callback events from Slack
 func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
-	log.Printf("A message found %s\n", eventsAPIEvent)
+	log.Printf("A message found %v\n", eventsAPIEvent)
 	innerEvent := eventsAPIEvent.InnerEvent
-	log.Printf("Inner event %s\n", innerEvent)
+	log.Printf("Inner event %v\n", innerEvent)
 
 	switch ev := innerEvent.Data.(type) {
 	case *slackevents.AppMentionEvent:
@@ -94,7 +95,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		//	return if no exact emoji found
 		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
 		if numOfEmojiMatches == 0 {
-			log.Fatalf("No %s found in message %s. Return.\n", EmojiName, ev.Text)
+			log.Printf("No %v found in message %v. Return.\n", EmojiName, ev.Text)
 			return nil
 		}
 
@@ -102,20 +103,20 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		receiverID := findReceiverIDIn(ev.Text)
 
 		if receiverID == "" {
-			log.Fatalf("No receiver found. Return.\n")
+			log.Printf("No receiver found. Return.\n")
 			return nil
 		}
 
 		//	Get receiver information
 		receiver, err := API.GetUserInfo(receiverID)
 		if err != nil {
-			log.Fatalf("Error getting receiver %s info %s\n", ev.User, err)
+			log.Printf("Error getting receiver %v info %v\n", ev.User, err)
 			return errors.New("slack: unable to get receiver information")
 		}
-		log.Printf("ID: %s, Fullname: %s, Email: %s\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
+		log.Printf("ID: %v, Fullname: %v, Email: %v\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
 		if receiver.IsBot {
-			log.Panicf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
+			log.Printf("Receiver %v is bot. Return.\n", receiver.Profile.RealName)
 			reactToSlackMessage(ev.Channel, ev.TimeStamp, "x")
 			return nil
 		}
@@ -124,14 +125,14 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		//	return if error
 		user, err := API.GetUserInfo(ev.User)
 		if err != nil {
-			log.Printf("Error getting user %s info %s\n", ev.User, err)
+			log.Printf("Error getting user %v info %v\n", ev.User, err)
 			return errors.New("slack: unable to get user information")
 		}
-		log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
+		log.Printf("ID: %v, Fullname: %v, Email: %v\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 		//	Won't accept users giving for themself
 		if user.ID == receiverID {
-			log.Fatalf("UserID = receiverID = %s\n", user.ID)
+			log.Printf("UserID = receiverID = %v\n", user.ID)
 			reactToSlackMessage(ev.Channel, ev.TimeStamp, "pray")
 			return nil
 		}
@@ -144,7 +145,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		return nil
 	}
 
-	log.Panicf("Strange message event %v", eventsAPIEvent)
+	log.Printf("Strange message event %v", eventsAPIEvent)
 	return errors.New("slack: strange event api event")
 }
 
@@ -177,7 +178,7 @@ func findReceiverIDIn(text string) string {
 		return ""
 	}
 
-	log.Printf("Matched receivers %s\n", receivers)
+	log.Printf("Matched receivers %v\n", receivers)
 	var receiverRaw = receivers[0]
 	var receiverID = receiverRaw[2 : len(receiverRaw)-1]
 
@@ -190,7 +191,7 @@ func findNumOfEmojiIn(text string) int {
 	r := regexp.MustCompile(emojiRegEx)
 	matchedEmoji := r.FindAllString(text, -1)
 	var numOfMatches = len(matchedEmoji)
-	log.Printf("%d matched %s found\n", numOfMatches, EmojiName)
+	log.Printf("%d matched %v found\n", numOfMatches, EmojiName)
 	return numOfMatches
 }
 
@@ -199,7 +200,7 @@ func responseToSlackChallenge(body string, w http.ResponseWriter) {
 	var r *slackevents.ChallengeResponse
 	err := json.Unmarshal([]byte(body), &r)
 	if err != nil {
-		log.Fatalf("Unable to unmarshal slack URL verification challenge. Error %s\n", err)
+		log.Fatalf("Unable to unmarshal slack URL verification challenge. Error %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -242,9 +243,9 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 func postSlackMessage(channel string, text string) {
 	respChannel, respTimestamp, err := API.PostMessage(channel, text, SlackPostMessageParameters)
 	if err != nil {
-		log.Panicf("Unable to post message to Slack with error %v\n", err)
+		log.Printf("Unable to post message to Slack with error %v\n", err)
 	}
-	log.Printf("Message posted to channel %s at %s\n", respChannel, respTimestamp)
+	log.Printf("Message posted to channel %v at %v\n", respChannel, respTimestamp)
 }
 
 //	reactToSlackMessage React to Slack message
@@ -252,7 +253,7 @@ func reactToSlackMessage(channel string, timestamp string, emoji string) {
 	refToMessage := slack.NewRefToMessage(channel, timestamp)
 	err := API.AddReaction(emoji, refToMessage)
 	if err != nil {
-		log.Panicf("Unable to react %v to comment %v with error %v", emoji, refToMessage, err)
+		log.Printf("Unable to react %v to comment %v with error %v", emoji, refToMessage, err)
 	}
 }
 
