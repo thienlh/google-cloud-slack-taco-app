@@ -96,8 +96,7 @@ func getService() *sheets.Service {
 }
 
 // Read and print sample data from the sheet
-func readExamples() {
-	readRange := "Class Data!A2:E"
+func readFrom(readRange string) [][]interface{} {
 	resp, err := SheetsService.Spreadsheets.Values.Get(SpreadsheetID, readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
@@ -105,12 +104,10 @@ func readExamples() {
 
 	if len(resp.Values) == 0 {
 		fmt.Println("No data found.")
+		return nil
 	} else {
-		fmt.Println("Name, Major:")
-		for _, row := range resp.Values {
-			// Print columns A and E, which correspond to indices 0 and 4.
-			fmt.Printf("%s, %s\n", row[0], row[4])
-		}
+		fmt.Printf("Data found: %v\n", resp.Values)
+		return resp.Values
 	}
 }
 
@@ -120,7 +117,7 @@ func write(value []interface{}) {
 
 	valueRange.Values = append(valueRange.Values, value)
 
-	_, err := SheetsService.Spreadsheets.Values.Append(SpreadsheetID, writeRange, &valueRange).ValueInputOption("RAW").Do()
+	_, err := SheetsService.Spreadsheets.Values.Append(SpreadsheetID, writeRange, &valueRange).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		log.Fatalf("Unable to write data %v to sheet. %v", value, err)
 	}
