@@ -28,6 +28,7 @@ var EmojiName = fmt.Sprintf(":%s:", os.Getenv("EMOJI_NAME"))
 var EmojiNameLength = len(EmojiName)
 
 var MaxEveryday, _ = strconv.Atoi(os.Getenv("MAX_EVERYDAY"))
+var Today = timeIn("Vietnam", time.Now()).Format("02-Jan 2006")
 
 //	API Slack API
 var API = slack.New(SlackToken)
@@ -89,6 +90,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 	case *slackevents.AppMentionEvent:
 		log.Println("[AppMentionEvent]")
 		go postSlackMessage(ev.Channel, AppMentionResponseMessage)
+		return
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
 
@@ -148,6 +150,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 
 		go restrictNumOfEmojiToday(ev, user, receiver, numOfEmojiMatches)
 		go reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
+		return
 	}
 
 	log.Printf("Strange message event %v", eventsAPIEvent)
@@ -164,10 +167,9 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 		}
 
 		giver := GivingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(string)}
-		today := timeIn("Vietnam", time.Now()).Format("Jan-02 2006")
-		log.Printf("Giver: %v, today: %v\n", giver, today)
+		log.Printf("Giver: %v, today: %v\n", giver, Today)
 
-		if user.Name == giver.Name && giver.Date == today {
+		if user.Name == giver.Name && giver.Date == Today {
 			log.Printf("Today record for user %v found.", user.Name)
 
 			total, err := strconv.Atoi(giver.Total)
@@ -299,6 +301,7 @@ func postSlackMessage(channel string, text string) {
 	respChannel, respTimestamp, err := API.PostMessage(channel, text, SlackPostMessageParameters)
 	if err != nil {
 		log.Printf("Unable to post message to Slack with error %v\n", err)
+		return
 	}
 	log.Printf("Message posted to channel %v at %v\n", respChannel, respTimestamp)
 }
@@ -309,6 +312,7 @@ func reactToSlackMessage(channel string, timestamp string, emoji string) {
 	err := API.AddReaction(emoji, refToMessage)
 	if err != nil {
 		log.Printf("Unable to react %v to comment %v with error %v", emoji, refToMessage, err)
+		return
 	}
 }
 
