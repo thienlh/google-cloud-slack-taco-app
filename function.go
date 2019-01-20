@@ -4,7 +4,6 @@ package p
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/nlopes/slack/slackevents"
 	"log"
@@ -62,11 +61,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	case slackevents.URLVerification:
 		responseToSlackChallenge(body, w)
 	case slackevents.CallbackEvent:
-		err := handleCallbackEvent(eventsAPIEvent)
-		if err != nil {
-			log.Fatalf("Error handling Slack callback event  with error %v. Return", err)
-			return
-		}
+		handleCallbackEvent(eventsAPIEvent)
 	}
 
 	log.Printf("Finish")
@@ -75,7 +70,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 }
 
 //	handleCallbackEvent Handle Callback events from Slack
-func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
+func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 	log.Printf("A message found %v\n", eventsAPIEvent)
 	innerEvent := eventsAPIEvent.InnerEvent
 	log.Printf("Inner event %v\n", innerEvent)
@@ -83,12 +78,12 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 	switch ev := innerEvent.Data.(type) {
 	case *slackevents.AppMentionEvent:
 		log.Println("[AppMentionEvent]")
-		postSlackMessage(ev.Channel, AppMentionResponseMessage)
+		go postSlackMessage(ev.Channel, AppMentionResponseMessage)
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
 
 		if !verifyMessageEvent(*ev) {
-			return errors.New("slack: not a valid message to process")
+			return
 		}
 
 		//	Get the emoji in the message
@@ -96,7 +91,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
 		if numOfEmojiMatches == 0 {
 			log.Printf("No %v found in message %v. Return.\n", EmojiName, ev.Text)
-			return nil
+			return
 		}
 
 		// Find the receiver
@@ -104,21 +99,21 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 		if receiverID == "" {
 			log.Printf("No receiver found. Return.\n")
-			return nil
+			return
 		}
 
 		//	Get receiver information
 		receiver, err := API.GetUserInfo(receiverID)
 		if err != nil {
 			log.Printf("Error getting receiver %v info %v\n", ev.User, err)
-			return errors.New("slack: unable to get receiver information")
+			return
 		}
 		log.Printf("ID: %v, Fullname: %v, Email: %v\n", receiver.ID, receiver.Profile.RealName, receiver.Profile.Email)
 
 		if receiver.IsBot {
 			log.Printf("Receiver %v is bot. Return.\n", receiver.Profile.RealName)
-			reactToSlackMessage(ev.Channel, ev.TimeStamp, "x")
-			return nil
+			go reactToSlackMessage(ev.Channel, ev.TimeStamp, "x")
+			return
 		}
 
 		//	Get user who posted the message
@@ -126,27 +121,24 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		user, err := API.GetUserInfo(ev.User)
 		if err != nil {
 			log.Printf("Error getting user %v info %v\n", ev.User, err)
-			return errors.New("slack: unable to get user information")
+			return
 		}
 		log.Printf("ID: %v, Fullname: %v, Email: %v\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 		//	Won't accept users giving for themself
 		if user.ID == receiverID {
 			log.Printf("UserID = receiverID = %v\n", user.ID)
-			reactToSlackMessage(ev.Channel, ev.TimeStamp, "pray")
-			return nil
+			go reactToSlackMessage(ev.Channel, ev.TimeStamp, "pray")
+			return
 		}
 
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
-		reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
-		reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
-
-		return nil
+		go reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
+		go reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 	}
 
 	log.Printf("Strange message event %v", eventsAPIEvent)
-	return errors.New("slack: strange event api event")
 }
 
 //	writeToGoogleSheets Write value to Google Sheets using gsheets.go
