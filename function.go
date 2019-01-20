@@ -147,7 +147,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, receiver *slack.User, numOfEmojiMatches int) {
 	//	Timestamp, Giver, Receiver, Quantity, Text, Date time
 	//	format from Slack: 1547921475.007300
-	var timestamp = toDate(strings.Split(event.TimeStamp, ".")[0])
+	var timestamp = timeIn("Vietnam", toDate(strings.Split(event.TimeStamp, ".")[0]))
 	//	Using Google Sheets recognizable format
 	var datetime = timestamp.Format("01/02/2006 15:04:05")
 	var giverName = user.Profile.RealName

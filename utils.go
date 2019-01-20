@@ -12,16 +12,12 @@ var countryTz = map[string]string{
 	"Vietnam": "Asia/Ho_Chi_Minh",
 }
 
-func timeIn(name string) time.Time {
+func timeIn(name string, t time.Time) time.Time {
 	loc, err := time.LoadLocation(countryTz[name])
 	if err != nil {
-		panic(err)
+		log.Panicf("Error loading location %v", name)
 	}
-	return time.Now().In(loc)
-}
-
-func timeInVietnam(time time.Time) time.Time {
-	return
+	return t.In(loc)
 }
 
 // toDate Convert epoch timestamp to time.Time
