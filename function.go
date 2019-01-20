@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/nlopes/slack/slackevents"
 
@@ -33,7 +34,7 @@ var API = slack.New(SlackToken)
 var SlackPostMessageParameters slack.PostMessageParameters
 
 const AppMentionResponseMessage = "Chào anh chị em e-pilot :thuan: :mama-thuy:"
-const SelfGivingResponseMessagePattern = "Bạn không thể tự tặng mình %s! Sao không thử làm gì đó giúp ích cho team xem sao :strong:"
+const SelfGivingResponseMessagePattern = "Bạn không thể tự tặng bản thân %s!"
 const ReceivedResponseMessagePattern = "<@%s> đã nhận được %d %s từ <@%s>"
 const GivingToBotResponseMessagePattern = "Bạn không thể cho bot %s!"
 
@@ -105,6 +106,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
 		if numOfEmojiMatches == 0 {
 			log.Fatalf("No %s found in message %s. Return.\n", EmojiName, ev.Text)
+			return nil
 		}
 
 		// Find the receiver
@@ -112,12 +114,14 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 		if receiverID == "" {
 			log.Fatalf("No receiver found. Return.\n")
+			return nil
 		}
 
 		//	Won't accept users giving for themself
 		if user.ID == receiverID {
 			log.Fatalf("UserID = receiverID = %s\n", user.ID)
 			postSlackMessage(ev.Channel, fmt.Sprintf(SelfGivingResponseMessagePattern, EmojiName))
+			return nil
 		}
 
 		//	Get receiver information
@@ -131,15 +135,17 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		if receiver.IsBot {
 			log.Panicf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
 			postSlackMessage(ev.Channel, fmt.Sprintf(GivingToBotResponseMessagePattern, EmojiName))
+			return nil
 		}
 
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
-		//postSlackMessage(ev.Channel, fmt.Sprintf(ReceivedResponseMessagePattern, receiver.ID, numOfEmojiMatches, EmojiName, user.ID))
+
 		refToMessage := slack.NewRefToMessage(ev.Channel, ev.TimeStamp)
 		err = API.AddReaction("thuan", refToMessage)
 		if err != nil {
 			log.Panicf("Unable to react to comment %v with error %v", refToMessage, err)
+			return nil
 		}
 	}
 
@@ -149,14 +155,15 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 //	writeToGoogleSheets Write value to Google Sheets using gsheets.go
 func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, receiver *slack.User, numOfEmojiMatches int) {
-	//	Timestamp, Giver, Receiver, Quantity, Text
+	//	Timestamp, Giver, Receiver, Quantity, Text, Date time
 	//	format from Slack: 1547921475.007300
-	var time = toDate(strings.Split(event.TimeStamp, ".")[0])
+	var timestamp = toDate(strings.Split(event.TimeStamp, ".")[0])
 	var giverName = user.Profile.RealName
 	var receiverName = receiver.Profile.RealName
 	var quantity = numOfEmojiMatches
 	var message = event.Text
-	valueToWrite := []interface{}{time, giverName, receiverName, quantity, message}
+	var datetime = timestamp.Format(time.RFC1123Z)
+	valueToWrite := []interface{}{timestamp, giverName, receiverName, quantity, message, datetime}
 	log.Printf("Value to write %v", valueToWrite)
 
 	write(valueToWrite)
