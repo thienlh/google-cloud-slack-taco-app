@@ -71,8 +71,10 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
 		responseToSlackChallenge(body, w)
+		break
 	case slackevents.CallbackEvent:
 		handleCallbackEvent(eventsAPIEvent)
+		break
 	}
 
 	log.Printf("Finish")
@@ -210,6 +212,8 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 			numOfEmojiMatches = 5
 		}
 
+		go writeToGoogleSheets(event, user, receiver, numOfEmojiMatches)
+		go reactToSlackMessage(event.Channel, event.TimeStamp, getNumberEmoji(numOfEmojiMatches))
 	}
 }
 
