@@ -133,7 +133,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		}
 
 		//	Write to Google sheets and post message
-		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
+		go writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
 		go reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
 		go reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 	}
