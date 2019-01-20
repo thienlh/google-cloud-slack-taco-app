@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nlopes/slack/slackevents"
 	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
-	"time"
-
-	"github.com/nlopes/slack/slackevents"
 
 	"github.com/nlopes/slack"
 )
@@ -158,7 +156,8 @@ func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, recei
 	//	Timestamp, Giver, Receiver, Quantity, Text, Date time
 	//	format from Slack: 1547921475.007300
 	var timestamp = toDate(strings.Split(event.TimeStamp, ".")[0])
-	var datetime = timestamp.Format(time.RFC1123)
+	//	Using Google Sheets recognizable format
+	var datetime = timestamp.Format("Mon, 02 Jan 2006 15:04:05")
 	var giverName = user.Profile.RealName
 	var receiverName = receiver.Profile.RealName
 	var quantity = numOfEmojiMatches
