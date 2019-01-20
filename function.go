@@ -158,12 +158,12 @@ func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, recei
 	//	Timestamp, Giver, Receiver, Quantity, Text, Date time
 	//	format from Slack: 1547921475.007300
 	var timestamp = toDate(strings.Split(event.TimeStamp, ".")[0])
+	var datetime = timestamp.Format(time.RFC1123)
 	var giverName = user.Profile.RealName
 	var receiverName = receiver.Profile.RealName
 	var quantity = numOfEmojiMatches
 	var message = event.Text
-	var datetime = timestamp.Format(time.RFC1123Z)
-	valueToWrite := []interface{}{timestamp, giverName, receiverName, quantity, message, datetime}
+	valueToWrite := []interface{}{timestamp, datetime, giverName, receiverName, quantity, message}
 	log.Printf("Value to write %v", valueToWrite)
 
 	write(valueToWrite)
