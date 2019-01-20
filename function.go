@@ -64,14 +64,13 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		err := handleCallbackEvent(eventsAPIEvent)
 		if err != nil {
 			log.Fatalf("Error handling Slack callback event  with error %v. Return", err)
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
-		log.Printf("Finish")
-		w.WriteHeader(http.StatusOK)
-		return
 	}
+
+	log.Printf("Finish")
+	w.WriteHeader(http.StatusOK)
+	return
 }
 
 //	handleCallbackEvent Handle Callback events from Slack
@@ -99,27 +98,11 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 			return nil
 		}
 
-		//	Get user who posted the message
-		//	return if error
-		user, err := API.GetUserInfo(ev.User)
-		if err != nil {
-			log.Printf("Error getting user %s info %s\n", ev.User, err)
-			return errors.New("slack: unable to get user information")
-		}
-		log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
-
 		// Find the receiver
 		receiverID := findReceiverIDIn(ev.Text)
 
 		if receiverID == "" {
 			log.Fatalf("No receiver found. Return.\n")
-			return nil
-		}
-
-		//	Won't accept users giving for themself
-		if user.ID == receiverID {
-			log.Fatalf("UserID = receiverID = %s\n", user.ID)
-			reactToSlackMessage(ev.Channel, ev.TimeStamp, "pray")
 			return nil
 		}
 
@@ -137,9 +120,26 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 			return nil
 		}
 
+		//	Get user who posted the message
+		//	return if error
+		user, err := API.GetUserInfo(ev.User)
+		if err != nil {
+			log.Printf("Error getting user %s info %s\n", ev.User, err)
+			return errors.New("slack: unable to get user information")
+		}
+		log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
+
+		//	Won't accept users giving for themself
+		if user.ID == receiverID {
+			log.Fatalf("UserID = receiverID = %s\n", user.ID)
+			reactToSlackMessage(ev.Channel, ev.TimeStamp, "pray")
+			return nil
+		}
+
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
 		reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
+		reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
 
 		return nil
 	}
@@ -215,7 +215,7 @@ func responseToSlackChallenge(body string, w http.ResponseWriter) {
 //	verifyMessageEvent Check whether the message event is valid for processing
 func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 	if ev.SubType != "" {
-		log.Printf("Event with subtype=%v. Return.\n", ev.SubType)
+		log.Printf("Event with subtype %v. Return.\n", ev.SubType)
 		return false
 	}
 
@@ -253,5 +253,27 @@ func reactToSlackMessage(channel string, timestamp string, emoji string) {
 	err := API.AddReaction(emoji, refToMessage)
 	if err != nil {
 		log.Panicf("Unable to react %v to comment %v with error %v", emoji, refToMessage, err)
+	}
+}
+
+//	getNumberEmoji Return number of given emoji
+//	if < 1 then return ""
+//	if 1 < number <= max then return emoji name
+//	otherwise return emoji name for max value
+func getNumberEmoji(number int) string {
+	if number < 1 {
+		return ""
+	}
+	switch number {
+	case 1:
+		return "one"
+	case 2:
+		return "two"
+	case 3:
+		return "three"
+	case 4:
+		return "four"
+	default:
+		return "five"
 	}
 }
