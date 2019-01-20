@@ -138,8 +138,8 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
-		reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 		reactToSlackMessage(ev.Channel, ev.TimeStamp, getNumberEmoji(numOfEmojiMatches))
+		reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 
 		return nil
 	}
@@ -154,7 +154,7 @@ func writeToGoogleSheets(event slackevents.MessageEvent, user *slack.User, recei
 	//	format from Slack: 1547921475.007300
 	var timestamp = toDate(strings.Split(event.TimeStamp, ".")[0])
 	//	Using Google Sheets recognizable format
-	var datetime = timestamp.Format("Mon, 02 Jan 2006 15:04:05")
+	var datetime = timestamp.Format("01/02/2006 15:04:05")
 	var giverName = user.Profile.RealName
 	var receiverName = receiver.Profile.RealName
 	var quantity = numOfEmojiMatches
