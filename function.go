@@ -24,6 +24,7 @@ var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 
 //	EmojiName name of the emoji to use
 var EmojiName = fmt.Sprintf(":%s:", os.Getenv("EMOJI_NAME"))
+var EmojiNameLength = len(EmojiName)
 
 //	API Slack API
 var API = slack.New(SlackToken)
@@ -118,7 +119,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 		//	Won't accept users giving for themself
 		if user.ID == receiverID {
 			log.Fatalf("UserID = receiverID = %s\n", user.ID)
-			postSlackMessage(ev.Channel, fmt.Sprintf(SelfGivingResponseMessagePattern, EmojiName))
+			reactToSlackMessage(ev.Channel, ev.TimeStamp, "pray")
 			return nil
 		}
 
@@ -132,19 +133,13 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) error {
 
 		if receiver.IsBot {
 			log.Panicf("Receiver %s is bot. Return.\n", receiver.Profile.RealName)
-			postSlackMessage(ev.Channel, fmt.Sprintf(GivingToBotResponseMessagePattern, EmojiName))
+			reactToSlackMessage(ev.Channel, ev.TimeStamp, "x")
 			return nil
 		}
 
 		//	Write to Google sheets and post message
 		writeToGoogleSheets(*ev, user, receiver, numOfEmojiMatches)
-
-		refToMessage := slack.NewRefToMessage(ev.Channel, ev.TimeStamp)
-		err = API.AddReaction("thuan", refToMessage)
-		if err != nil {
-			log.Panicf("Unable to react to comment %v with error %v", refToMessage, err)
-			return nil
-		}
+		reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 
 		return nil
 	}
@@ -230,6 +225,11 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 		return false
 	}
 
+	if len(ev.Text) < EmojiNameLength {
+		log.Printf("Message too short. Return.\n")
+		return false
+	}
+
 	// TODO: Try to handle duplicate messages
 	//if ev.PreviousMessage.TimeStamp == ev.TimeStamp {
 	//	log.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
@@ -245,4 +245,13 @@ func postSlackMessage(channel string, text string) {
 		log.Panicf("Unable to post message to Slack with error %v\n", err)
 	}
 	log.Printf("Message posted to channel %s at %s\n", respChannel, respTimestamp)
+}
+
+//	reactToSlackMessage React to Slack message
+func reactToSlackMessage(channel string, timestamp string, emoji string) {
+	refToMessage := slack.NewRefToMessage(channel, timestamp)
+	err := API.AddReaction(emoji, refToMessage)
+	if err != nil {
+		log.Panicf("Unable to react %v to comment %v with error %v", emoji, refToMessage, err)
+	}
 }
