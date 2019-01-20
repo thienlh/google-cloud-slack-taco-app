@@ -105,10 +105,6 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			log.Printf("No %v found in message %v. Return.\n", EmojiName, ev.Text)
 			return
 		}
-		//	Never insert more than 5 at once
-		if numOfEmojiMatches > 5 {
-			numOfEmojiMatches = 5
-		}
 
 		// Find the receiver
 		receiverID := findReceiverIDIn(ev.Text)
@@ -149,7 +145,6 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		}
 
 		go restrictNumOfEmojiToday(ev, user, receiver, numOfEmojiMatches)
-		go reactToSlackMessage(ev.Channel, ev.TimeStamp, "kiss")
 		return
 	}
 
@@ -158,6 +153,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 
 func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numOfEmojiMatches int) {
 	summaries := readFrom("Pivot Table 1!A3:D")
+	found := false
 
 	for _, row := range summaries {
 		//	Skip Grand Total row
@@ -171,6 +167,7 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 
 		if user.Profile.RealName == giver.Name && giver.Date == Today {
 			log.Printf("Today record for user %v found.", user.Profile.RealName)
+			found = true
 
 			total, err := strconv.Atoi(giver.Total)
 			if err != nil {
@@ -199,8 +196,18 @@ func restrictNumOfEmojiToday(event *slackevents.MessageEvent, user *slack.User, 
 
 			log.Printf("To give: %d\n", toGive)
 
-			go writeToGoogleSheets(event, user, receiver, toGive)
-			go reactToSlackMessage(event.Channel, event.TimeStamp, getNumberEmoji(toGive))
+			if toGive > 0 {
+				go writeToGoogleSheets(event, user, receiver, toGive)
+				go reactToSlackMessage(event.Channel, event.TimeStamp, getNumberEmoji(toGive))
+			} else {
+				go reactToSlackMessage(event.Channel, event.TimeStamp, "x")
+			}
+		}
+	}
+
+	if !found {
+		if numOfEmojiMatches >= 5 {
+			numOfEmojiMatches = 5
 		}
 
 	}
