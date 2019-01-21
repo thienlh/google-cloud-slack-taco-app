@@ -6,14 +6,16 @@ import (
 	"time"
 )
 
-var countryTz = map[string]string{
+//	CountryTz Supported locations
+var CountryTz = map[string]string{
 	"Hungary": "Europe/Budapest",
 	"Egypt":   "Africa/Cairo",
 	"Vietnam": "Asia/Ho_Chi_Minh",
 }
 
+//	timeIn Return time in location
 func timeIn(name string, t time.Time) time.Time {
-	loc, err := time.LoadLocation(countryTz[name])
+	loc, err := time.LoadLocation(CountryTz[name])
 	if err != nil {
 		log.Panicf("Error loading location %v", name)
 	}

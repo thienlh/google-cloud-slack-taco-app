@@ -16,8 +16,14 @@ import (
 	"golang.org/x/net/context"
 )
 
+//	WriteRange Start range to write raw data
+const WriteRange = "A2"
+
+//	SpreadsheetID if of the spreadsheet
 var SpreadsheetID = os.Getenv("SPREADSHEET_ID")
-var SpeadsheetURL = os.Getenv("SPREADSHEET_URL")
+
+//	SpreadsheetURL Shareable link to the spreadsheet
+var SpreadsheetURL = os.Getenv("SPREADSHEET_URL")
 
 // SheetsService Google Sheets service
 var SheetsService = getService()
@@ -112,13 +118,13 @@ func readFrom(readRange string) [][]interface{} {
 	}
 }
 
-func write(value []interface{}) {
-	writeRange := "A2"
+// write Write data to default range
+func appendValue(value []interface{}) {
 	var valueRange sheets.ValueRange
 
 	valueRange.Values = append(valueRange.Values, value)
 
-	_, err := SheetsService.Spreadsheets.Values.Append(SpreadsheetID, writeRange, &valueRange).ValueInputOption("USER_ENTERED").Do()
+	_, err := SheetsService.Spreadsheets.Values.Append(SpreadsheetID, WriteRange, &valueRange).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		log.Fatalf("Unable to write data %v to sheet. %v", value, err)
 	}
