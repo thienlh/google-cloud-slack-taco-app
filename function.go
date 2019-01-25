@@ -147,6 +147,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		// Trim the mention part
 		// format: <@app_id> which contains 12 characters
 		text := strings.ToLower(strings.TrimSpace(ev.Text[11:]))
+		log.Printf("text: %s\n", text)
 
 		if text == ParamHelp || text == "" {
 			go postSlackMessage(ev.Channel, AppMentionResponseMessage)
@@ -204,6 +205,9 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			go postSlackMessage(ev.Channel, pairs.String())
 			return
 		}
+
+		log.Println("Finish App Mention Event")
+		return
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
 
@@ -261,7 +265,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		return
 	}
 
-	log.Printf("Strange message event %v", eventsAPIEvent)
+	log.Printf("Strange message event %v\n", eventsAPIEvent)
 }
 
 func getLeaderboard(from Date, to Date) PairList {
@@ -290,11 +294,11 @@ func getLeaderboard(from Date, to Date) PairList {
 			}
 
 			leaderboard[receivingSummary.Name] = total + leaderboard[receivingSummary.Name]
-			log.Printf("Leaderboard: %v", leaderboard)
+			log.Printf("Leaderboard: %v\n", leaderboard)
 		}
 	}
 
-	log.Printf("Leaderboard: %v", leaderboard)
+	log.Printf("Leaderboard: %v\n", leaderboard)
 	return rank(leaderboard)
 }
 
@@ -326,7 +330,7 @@ func restrictNumOfEmojiCanBeGivenToday(event *slackevents.MessageEvent, user *sl
 
 		// Today record
 		if userRealName == givingSummary.Name && givingSummary.Date == Today {
-			log.Printf("Today record for user %v found.", userRealName)
+			log.Printf("Today record for user %v found.\n", userRealName)
 			todayRecordFound = true
 
 			givenToday, err := strconv.Atoi(givingSummary.Total)
@@ -396,7 +400,7 @@ func writeToGoogleSheets(event *slackevents.MessageEvent, user *slack.User, rece
 	var receiverName = receiver.Profile.RealName
 	var message = event.Text
 	valueToWrite := []interface{}{timestamp, datetime, giverName, receiverName, toGive, message}
-	log.Printf("Value to write %v", valueToWrite)
+	log.Printf("Value to write %v\n", valueToWrite)
 
 	go appendValue(valueToWrite)
 }
@@ -484,7 +488,7 @@ func reactToSlackMessage(channel string, timestamp string, emoji string) {
 	refToMessage := slack.NewRefToMessage(channel, timestamp)
 	err := API.AddReaction(emoji, refToMessage)
 	if err != nil {
-		log.Printf("Unable to react %v to comment %v with error %v", emoji, refToMessage, err)
+		log.Printf("Unable to react %v to comment %v with error %v\n", emoji, refToMessage, err)
 		return
 	}
 }
