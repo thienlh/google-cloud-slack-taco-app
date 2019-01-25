@@ -1,10 +1,19 @@
 package p
 
 import (
+	"fmt"
 	"log"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
+
+type Date struct {
+	Year  int
+	Month time.Month
+	Day   int
+}
 
 //	CountryTz Supported locations
 var CountryTz = map[string]string{
@@ -30,4 +39,44 @@ func toDate(timestamp string) time.Time {
 	}
 
 	return time.Unix(i, 0)
+}
+
+func isInRange(t time.Time, start Date, end Date) bool {
+	timeInUTC := t.In(time.UTC)
+	startTime := time.Date(start.Year, start.Month, start.Day, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(end.Year, end.Month, end.Day, 23, 59, 59, 999, time.UTC)
+
+	return timeInUTC.After(startTime) && timeInUTC.Before(endTime)
+}
+
+func rank(m map[string]int) PairList {
+	pl := make(PairList, len(m))
+	i := 0
+	for k, v := range m {
+		pl[i] = Pair{k, v}
+		i++
+	}
+	sort.Sort(sort.Reverse(pl))
+	return pl
+}
+
+type Pair struct {
+	Key   string
+	Value int
+}
+
+type PairList []Pair
+
+func (p PairList) Len() int           { return len(p) }
+func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
+func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p Pair) String() string         { return fmt.Sprintf("[%v, %v]", p.Key, p.Value) }
+func (p PairList) String() string {
+	var arr []string
+
+	for _, pair := range p {
+		arr = append(arr, pair.String())
+	}
+
+	return strings.Join(arr, ", ")
 }
