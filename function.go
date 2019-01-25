@@ -146,7 +146,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 
 		// Trim the mention part
 		// format: <@app_id> which contains 12 characters
-		text := strings.ToLower(strings.TrimSpace(ev.Text[11:]))
+		text := strings.ToLower(strings.TrimSpace(ev.Text[12:]))
 		log.Printf("text: %s\n", text)
 
 		if text == ParamHelp || text == "" {
