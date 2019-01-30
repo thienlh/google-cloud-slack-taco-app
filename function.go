@@ -147,7 +147,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		// Trim the mention part
 		// format: <@app_id> which contains 12 characters
 		text := strings.ToLower(strings.TrimSpace(ev.Text[12:]))
-		log.Printf("text: %s\n", text)
+		log.Printf("Text: [%s]\n", text)
 
 		if text == ParamHelp || text == "" {
 			go postSlackMessage(ev.Channel, AppMentionResponseMessage)
@@ -160,6 +160,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 		// @app bxh month
 		if strings.HasPrefix(text, ParamBxh) {
 			param := strings.Split(text, " ")[1]
+			log.Printf("Param: %v\n", param)
 
 			nowInVietnam := timeIn(LocationVietnam, time.Now())
 
@@ -206,7 +207,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			return
 		}
 
-		log.Println("Finish App Mention Event")
+		log.Println("Strange App Mention Event")
 		return
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
@@ -269,6 +270,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 }
 
 func getLeaderboard(from Date, to Date) PairList {
+	log.Printf("From: %v, to %v\n", from, to)
 	receivingSummaries := readFrom(SheetReceivingSummaryReadRange)
 	leaderboard := map[string]int{}
 
@@ -286,7 +288,7 @@ func getLeaderboard(from Date, to Date) PairList {
 			return nil
 		}
 
-		if isInRange(date, from, to) {
+		if isInRange(timeIn(LocationVietnam, date), from, to) {
 			total, err := strconv.Atoi(receivingSummary.Total)
 			if err != nil {
 				log.Fatalf("Unable to parse total %v to int with error %v", receivingSummary.Total, err)

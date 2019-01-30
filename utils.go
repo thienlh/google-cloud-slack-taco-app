@@ -42,7 +42,7 @@ func toDate(timestamp string) time.Time {
 }
 
 func isInRange(t time.Time, start Date, end Date) bool {
-	timeInUTC := t.In(time.UTC)
+	timeInUTC := t.In(time.UTC).Add(10000)
 	startTime := time.Date(start.Year, start.Month, start.Day, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(end.Year, end.Month, end.Day, 23, 59, 59, 999, time.UTC)
 
