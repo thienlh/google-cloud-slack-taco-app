@@ -216,57 +216,69 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			return
 		}
 
-		// Get the emoji in the message
-		// return if no exact emoji found
-		numOfEmojiMatches := findNumOfEmojiIn(ev.Text)
-		if numOfEmojiMatches == 0 {
-			log.Printf("No emoji %v found in message %v. Return.\n", EmojiName, ev.Text)
-			return
+		log.Printf("Message text: %v\n", ev.Text)
+		for _, row := range strings.Split(ev.Text, "\n") {
+			log.Printf("Processing row: %s\n", row)
+			go processText(ev, row)
 		}
 
-		// Find the receiver
-		receiverID := findReceiverIDIn(ev.Text)
-
-		if receiverID == "" {
-			log.Printf("No receiver found. Return.\n")
-			return
-		}
-
-		// Get receiver information
-		receiver, err := API.GetUserInfo(receiverID)
-		if err != nil {
-			log.Panicf("Error getting receiver %v info %v\n", ev.User, err)
-			return
-		}
-		printUserInfo(receiver)
-
-		if receiver.IsBot {
-			log.Printf("Receiver %v is bot. Return.\n", receiver.Profile.RealName)
-			go reactToSlackMessage(ev.Channel, ev.TimeStamp, EmojiX)
-			return
-		}
-
-		// Get user who posted the message
-		// return if error
-		user, err := API.GetUserInfo(ev.User)
-		if err != nil {
-			log.Panicf("Error getting user %v info %v\n", ev.User, err)
-			return
-		}
-		printUserInfo(user)
-
-		// Won't accept users giving for themself
-		if user.ID == receiverID {
-			log.Printf("UserID = receiverID = %v. Return.\n", user.ID)
-			go reactToSlackMessage(ev.Channel, ev.TimeStamp, EmojiPray)
-			return
-		}
-
-		go restrictNumOfEmojiCanBeGivenToday(ev, user, receiver, numOfEmojiMatches)
+		log.Println("Finish handling MessageEvent")
 		return
 	}
 
 	log.Printf("Strange message event %v\n", eventsAPIEvent)
+}
+
+// processText Process by custom text instead of entire message
+func processText(event *slackevents.MessageEvent, text string) {
+	// Get the emoji in the message
+	// return if no exact emoji found
+	numOfEmojiMatches := findNumOfEmojiIn(text)
+	if numOfEmojiMatches == 0 {
+		log.Printf("No emoji %v found in message %v. Return.\n", EmojiName, text)
+		return
+	}
+
+	// Find the receiver
+	receiverID := findReceiverIDIn(text)
+
+	if receiverID == "" {
+		log.Printf("No receiver found. Return.\n")
+		return
+	}
+
+	// Get receiver information
+	receiver, err := API.GetUserInfo(receiverID)
+	if err != nil {
+		log.Panicf("Error getting receiver %v info %v\n", receiverID, err)
+		return
+	}
+	printUserInfo(receiver)
+
+	if receiver.IsBot {
+		log.Printf("Receiver %v is bot. Return.\n", receiver.Profile.RealName)
+		go reactToSlackMessage(event.Channel, event.TimeStamp, EmojiX)
+		return
+	}
+
+	// Get user who posted the message
+	// return if error
+	user, err := API.GetUserInfo(event.User)
+	if err != nil {
+		log.Panicf("Error getting user %v info %v\n", event.User, err)
+		return
+	}
+	printUserInfo(user)
+
+	// Won't accept users giving for themself
+	if user.ID == receiverID {
+		log.Printf("UserID = receiverID = %v. Return.\n", user.ID)
+		go reactToSlackMessage(event.Channel, event.TimeStamp, EmojiPray)
+		return
+	}
+
+	go restrictNumOfEmojiCanBeGivenToday(event, user, receiver, numOfEmojiMatches)
+	return
 }
 
 func getLeaderboard(from Date, to Date) PairList {
@@ -467,7 +479,7 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 		return false
 	}
 
-	// TODO: Try to handle duplicate messages
+	// TODO: Handle retry requests
 	//if ev.PreviousMessage.TimeStamp == ev.TimeStamp {
 	// log.Printf("Message with the same timestamp as previous message. Maybe a duplicate. Return.\n")
 	// return false
