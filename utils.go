@@ -12,6 +12,8 @@ import (
 const topLeaderboardEmoji = ":crown:"
 const secondLeaderboardEmoji = ":rocket:"
 const thirdLeaderboardEmoji = ":trident:"
+const pairFormat = "*%50s*\t\t%5d"
+const leaderboardFormat = "%15s\t%v"
 
 type Date struct {
 	Year  int
@@ -74,7 +76,9 @@ type PairList []Pair
 func (p PairList) Len() int           { return len(p) }
 func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
 func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p Pair) String() string         { return fmt.Sprintf("%v\t\t %v", p.Key, p.Value) }
+func (p Pair) String() string {
+	return fmt.Sprintf(pairFormat, p.Key, p.Value)
+}
 func (p PairList) String() string {
 	var arr []string
 
@@ -83,9 +87,9 @@ func (p PairList) String() string {
 	}
 
 	//	Add some emoji
-	arr[0] = fmt.Sprintf("%v\t%v", arr[0], topLeaderboardEmoji)
-	arr[1] = fmt.Sprintf("%v\t%v", arr[1], secondLeaderboardEmoji)
-	arr[2] = fmt.Sprintf("%v\t%v", arr[2], thirdLeaderboardEmoji)
+	arr[0] = fmt.Sprintf(leaderboardFormat, arr[0], topLeaderboardEmoji)
+	arr[1] = fmt.Sprintf(leaderboardFormat, arr[1], secondLeaderboardEmoji)
+	arr[2] = fmt.Sprintf(leaderboardFormat, arr[2], thirdLeaderboardEmoji)
 
 	return strings.Join(arr, "\n")
 }

@@ -91,6 +91,10 @@ const ParamSprint = "sprint"
 const ParamMonth = "month"
 const ParamYear = "year"
 
+const leaderboardNoRecordFoundResponseMessage = "No record found! :quy-serious:"
+
+const invalidAppMentionCommandResponseMessage = "Invalid command. Available commands are: ```bxh day\nbxh week\nbxh sprint\nbxh month\nbxh year```"
+
 // SprintStartDate A start date of the sprint with layout dd MM yyyy
 var SprintStartDate, _ = time.Parse("02 01 2006", os.Getenv("SPRINT_START_DATE"))
 
@@ -203,11 +207,16 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 			}
 
 			pairs := getLeaderboard(from, to)
-			go postSlackMessage(ev.Channel, pairs.String())
+			if len(pairs) > 0 {
+				go postSlackMessage(ev.Channel, pairs.String())
+			} else {
+				go postSlackMessage(ev.Channel, leaderboardNoRecordFoundResponseMessage)
+			}
 			return
 		}
 
 		log.Println("Strange App Mention Event")
+		go postSlackMessage(ev.Channel, invalidAppMentionCommandResponseMessage)
 		return
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
