@@ -70,7 +70,7 @@ type PairList []Pair
 func (p PairList) Len() int           { return len(p) }
 func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
 func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p Pair) String() string         { return fmt.Sprintf("[%v, %v]", p.Key, p.Value) }
+func (p Pair) String() string         { return fmt.Sprintf("%v\t\t %v", p.Key, p.Value) }
 func (p PairList) String() string {
 	var arr []string
 
@@ -78,5 +78,10 @@ func (p PairList) String() string {
 		arr = append(arr, pair.String())
 	}
 
-	return strings.Join(arr, ", ")
+	//	Add some emoji
+	arr[0] = fmt.Sprintf("%v\t%v", ":crown:", arr[0])
+	arr[1] = fmt.Sprintf("%v\t%v", ":rocket:", arr[1])
+	arr[1] = fmt.Sprintf("%v\t%v", ":trident:", arr[1])
+
+	return strings.Join(arr, "\n")
 }
