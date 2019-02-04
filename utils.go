@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+const topLeaderboardEmoji = ":crown:"
+const secondLeaderboardEmoji = ":rocket:"
+const thirdLeaderboardEmoji = ":trident:"
+
 type Date struct {
 	Year  int
 	Month time.Month
@@ -79,9 +83,9 @@ func (p PairList) String() string {
 	}
 
 	//	Add some emoji
-	arr[0] = fmt.Sprintf("%v\t%v", ":crown:", arr[0])
-	arr[1] = fmt.Sprintf("%v\t%v", ":rocket:", arr[1])
-	arr[1] = fmt.Sprintf("%v\t%v", ":trident:", arr[1])
+	arr[0] = fmt.Sprintf("%v\t%v", arr[0], topLeaderboardEmoji)
+	arr[1] = fmt.Sprintf("%v\t%v", arr[1], secondLeaderboardEmoji)
+	arr[2] = fmt.Sprintf("%v\t%v", arr[2], thirdLeaderboardEmoji)
 
 	return strings.Join(arr, "\n")
 }
