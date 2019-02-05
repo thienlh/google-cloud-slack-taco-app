@@ -21,7 +21,7 @@ import (
 // SlackToken Authentication token from slack
 var SlackToken = os.Getenv("SLACK_TOKEN")
 
-// SlackVerificationToken Verification token from slack
+// SlackVerification/Token Verification token from slack
 var SlackVerificationToken = os.Getenv("VERIFICATION_TOKEN")
 
 // EmojiName name of the emoji to use
@@ -498,7 +498,7 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 
 // postSlackMessage Post message to Slack
 func postSlackMessage(channel string, text string) {
-	SlackPostMessageParameters.EscapeText = false
+	SlackPostMessageParameters.EscapeText = true
 	respChannel, respTimestamp, err := API.PostMessage(channel, text, SlackPostMessageParameters)
 	if err != nil {
 		log.Printf("Unable to post message to Slack with error %v\n", err)

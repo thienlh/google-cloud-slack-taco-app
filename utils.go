@@ -12,7 +12,7 @@ import (
 const topLeaderboardEmoji = ":crown:"
 const secondLeaderboardEmoji = ":rocket:"
 const thirdLeaderboardEmoji = ":trident:"
-const pairFormat = "*%50s*\t\t%5d"
+const pairFormat = "*%-50s*\t\t%-5d"
 const leaderboardFormat = "%15s\t%v"
 
 type Date struct {
@@ -86,10 +86,18 @@ func (p PairList) String() string {
 		arr = append(arr, pair.String())
 	}
 
-	//	Add some emoji
-	arr[0] = fmt.Sprintf(leaderboardFormat, arr[0], topLeaderboardEmoji)
-	arr[1] = fmt.Sprintf(leaderboardFormat, arr[1], secondLeaderboardEmoji)
-	arr[2] = fmt.Sprintf(leaderboardFormat, arr[2], thirdLeaderboardEmoji)
+	if len(arr) >= 1 {
+		//	Add some emoji
+		arr[0] = fmt.Sprintf(leaderboardFormat, arr[0], topLeaderboardEmoji)
+	}
+
+	if len(arr) >= 2 {
+		arr[1] = fmt.Sprintf(leaderboardFormat, arr[1], secondLeaderboardEmoji)
+	}
+
+	if len(arr) >= 3 {
+		arr[2] = fmt.Sprintf(leaderboardFormat, arr[2], thirdLeaderboardEmoji)
+	}
 
 	return strings.Join(arr, "\n")
 }
