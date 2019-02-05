@@ -498,6 +498,7 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 
 // postSlackMessage Post message to Slack
 func postSlackMessage(channel string, text string) {
+	SlackPostMessageParameters.EscapeText = false
 	respChannel, respTimestamp, err := API.PostMessage(channel, text, SlackPostMessageParameters)
 	if err != nil {
 		log.Printf("Unable to post message to Slack with error %v\n", err)
