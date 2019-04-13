@@ -71,13 +71,6 @@ const googleSheetGivingSummaryReadRange = "Pivot Table 1!A3:D"
 // googleSheetReceivingSummaryReadRange Read range for the receiving summary sheet
 const googleSheetReceivingSummaryReadRange = "Pivot Table 2!A3:D"
 
-// givingSummary model represents each Giving Summary row in Google Sheets
-type givingSummary struct {
-	Name  string
-	Date  string
-	Total string
-}
-
 const paramHelp = "help"
 const paramChart = "chart"
 const paramDay = "day"
@@ -86,9 +79,16 @@ const paramScrumSprint = "sprint"
 const paramMonth = "month"
 const paramYear = "year"
 
+const chartResponseMessageFormat = "Result from %v to %v:\n%s"
 const noRecordFoundInChartResponseMessage = "No record found! :quy-serious:"
+const invalidAppMentionCommandResponseMessage = "Invalid command. Available commands are: ```help\nchart\nchart day\nchart week\nchart sprint\nchart month\nchart year```"
 
-const invalidAppMentionCommandResponseMessage = "Invalid command. Available commands are: ```chart day\nchart week\nchart sprint\nchart month\nchart year```"
+// givingSummary model represents each Giving Summary row in Google Sheets
+type givingSummary struct {
+	Name  string
+	Date  string
+	Total string
+}
 
 // lastRecordSprintStartDate A start date of the sprint with layout dd MM yyyy
 var lastRecordSprintStartDate, _ = time.Parse("02 01 2006", os.Getenv("SPRINT_START_DATE"))
@@ -237,7 +237,8 @@ func handleAppMentionEvent(appMentionEvent *slackevents.AppMentionEvent) {
 
 		chartRecords := getChart(from, to)
 		if len(chartRecords) > 0 {
-			go postSlackMessage(appMentionEvent.Channel, chartRecords.String())
+			chartResponseMessage := fmt.Sprintf(chartResponseMessageFormat, from, to, chartRecords.String())
+			go postSlackMessage(appMentionEvent.Channel, chartResponseMessage)
 		} else {
 			go postSlackMessage(appMentionEvent.Channel, noRecordFoundInChartResponseMessage)
 		}
