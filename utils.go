@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-const topLeaderboardEmoji = ":crown:"
-const secondLeaderboardEmoji = ":rocket:"
-const thirdLeaderboardEmoji = ":trident:"
+const topChartEmoji = ":crown:"
+const runnerUpEmoji = ":rocket:"
+const thirdChartEmoji = ":trident:"
 const pairFormat = "*%-50s*\t\t%-5d"
-const leaderboardFormat = "%15s\t%v"
+const chartFormat = "%15s\t%v"
 
 type Date struct {
 	Year  int
@@ -55,8 +55,8 @@ func isInRange(t time.Time, start Date, end Date) bool {
 	return timeInUTC.After(startTime) && timeInUTC.Before(endTime)
 }
 
-func rank(m map[string]int) PairList {
-	pl := make(PairList, len(m))
+func rank(m map[string]int) ChartRecords {
+	pl := make(ChartRecords, len(m))
 	i := 0
 	for k, v := range m {
 		pl[i] = Pair{k, v}
@@ -71,15 +71,15 @@ type Pair struct {
 	Value int
 }
 
-type PairList []Pair
+type ChartRecords []Pair
 
-func (p PairList) Len() int           { return len(p) }
-func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
-func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p ChartRecords) Len() int           { return len(p) }
+func (p ChartRecords) Less(i, j int) bool { return p[i].Value < p[j].Value }
+func (p ChartRecords) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p Pair) String() string {
 	return fmt.Sprintf(pairFormat, p.Key, p.Value)
 }
-func (p PairList) String() string {
+func (p ChartRecords) String() string {
 	var arr []string
 
 	for _, pair := range p {
@@ -88,16 +88,54 @@ func (p PairList) String() string {
 
 	if len(arr) >= 1 {
 		//	Add some emoji
-		arr[0] = fmt.Sprintf(leaderboardFormat, arr[0], topLeaderboardEmoji)
+		arr[0] = fmt.Sprintf(chartFormat, arr[0], topChartEmoji)
 	}
 
 	if len(arr) >= 2 {
-		arr[1] = fmt.Sprintf(leaderboardFormat, arr[1], secondLeaderboardEmoji)
+		arr[1] = fmt.Sprintf(chartFormat, arr[1], runnerUpEmoji)
 	}
 
 	if len(arr) >= 3 {
-		arr[2] = fmt.Sprintf(leaderboardFormat, arr[2], thirdLeaderboardEmoji)
+		arr[2] = fmt.Sprintf(chartFormat, arr[2], thirdChartEmoji)
 	}
 
 	return strings.Join(arr, "\n")
+}
+
+var emojiTexts = map[int]string{
+	0:  "zero",
+	1:  "one",
+	2:  "two",
+	3:  "three",
+	4:  "four",
+	5:  "five",
+	6:  "six",
+	7:  "seven",
+	8:  "eight",
+	9:  "nine",
+	10: "keycap_ten",
+}
+
+// getNumberEmoji Return number of given emoji in text
+// character by character
+func getNumberEmoji(number int) []string {
+	if number < 1 {
+		return nil
+	}
+
+	var results []string
+
+	if number > 0 && number <= 10 {
+		return append(results, emojiTexts[number])
+	}
+
+	str := strconv.Itoa(number)
+
+	for _, r := range str {
+		var c = string(r)
+		n, _ := strconv.Atoi(c)
+		results = append(results, emojiTexts[n])
+	}
+
+	return results
 }

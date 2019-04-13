@@ -30,8 +30,8 @@ var emojiName = fmt.Sprintf(":%s:", os.Getenv("EMOJI_NAME"))
 // emojiNameLength Length of emoji name (for quickly rejecting too short messages
 var emojiNameLength = len(emojiName)
 
-// maxEveryday Maximum number of emoji can be given everyday by each user
-var maxEveryday, _ = strconv.Atoi(os.Getenv("MAX_EVERYDAY"))
+// maxGivingPerDay Maximum number of emoji can be given everyday by each user
+var maxGivingPerDay, _ = strconv.Atoi(os.Getenv("MAX_EVERYDAY"))
 
 // locationVietnam Location name Vietnam
 const locationVietnam = "Vietnam"
@@ -39,8 +39,11 @@ const locationVietnam = "Vietnam"
 // slackDateTimeFormat Datetime format sent from Slack
 const slackDateTimeFormat = "01/02/2006 15:04:05"
 
+// GoogleSheetsTimeFormat Datetime format sent from Google Sheets
+const GoogleSheetsTimeFormat = "02-Jan 2006"
+
 // todayInVietnam Today in Vietnam time in special format '02-Jan 2006'
-var todayInVietnam = timeIn("Vietnam", time.Now()).Format(GoogleSheetsTimeFormat)
+var todayInVietnam = timeIn(locationVietnam, time.Now()).Format(GoogleSheetsTimeFormat)
 
 // compiledSlackUserIDPattern Compile Slack user id pattern first for better performance
 var compiledSlackUserIDPattern = regexp.MustCompile(`<@[\w]*>`)
@@ -48,8 +51,7 @@ var compiledSlackUserIDPattern = regexp.MustCompile(`<@[\w]*>`)
 // compiledSlackEmojiPattern Compile Slack user id pattern first for better performance
 var compiledSlackEmojiPattern = regexp.MustCompile(strings.Replace(fmt.Sprintf("(%s){1}", emojiName), "-", "\\-", -1))
 
-// api Slack API
-var api = slack.New(slackToken)
+var slackClient = slack.New(slackToken)
 
 // appMentionResponseMessage Message responding to app mention events
 var appMentionResponseMessage = fmt.Sprintf("Chào anh chị em e-pilot :thuan: :mama-thuy: :tung: Xem BXH tại %s", spreadsheetURL)
@@ -77,18 +79,18 @@ type givingSummary struct {
 }
 
 const paramHelp = "help"
-const paramBxh = "bxh"
+const paramChart = "chart"
 const paramWeek = "week"
-const paramSprint = "sprint"
+const paramScrumSprint = "sprint"
 const paramMonth = "month"
 const paramYear = "year"
 
-const leaderboardNoRecordFoundResponseMessage = "No record found! :quy-serious:"
+const noRecordFoundInChartResponseMessage = "No record found! :quy-serious:"
 
-const invalidAppMentionCommandResponseMessage = "Invalid command. Available commands are: ```bxh day\nbxh week\nbxh sprint\nbxh month\nbxh year```"
+const invalidAppMentionCommandResponseMessage = "Invalid command. Available commands are: ```chart day\nchart week\nchart sprint\nchart month\nchart year```"
 
-// sprintStartDate A start date of the sprint with layout dd MM yyyy
-var sprintStartDate, _ = time.Parse("02 01 2006", os.Getenv("SPRINT_START_DATE"))
+// lastRecordSprintStartDate A start date of the sprint with layout dd MM yyyy
+var lastRecordSprintStartDate, _ = time.Parse("02 01 2006", os.Getenv("SPRINT_START_DATE"))
 
 // sprintDuration Sprint duration in day
 var sprintDuration, _ = strconv.Atoi(os.Getenv("SPRINT_DURATION"))
@@ -102,9 +104,10 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Error reading buffer from body.")
 		return
 	}
+
+	log.Printf("Header: %v\n", r.Header)
 	body := buf.String()
 	log.Printf("Body: %v\n", body)
-	log.Printf("Header: %v\n", r.Header)
 
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionVerifyToken(&slackevents.TokenComparator{VerificationToken: slackVerificationToken}))
 	if err != nil {
@@ -114,18 +117,17 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Event: %v\n", eventsAPIEvent)
 
-	// Remember to break!
 	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
-		responseToSlackChallenge(body, w)
+		responseSlackChallenge(body, w)
 		break
 	case slackevents.CallbackEvent:
 		handleCallbackEvent(eventsAPIEvent)
 		break
 	}
 
-	log.Printf("Done")
 	w.WriteHeader(http.StatusOK)
+	log.Printf("Done")
 	return
 }
 
@@ -135,126 +137,142 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 	innerEvent := eventsAPIEvent.InnerEvent
 	log.Printf("Inner event %v\n", innerEvent)
 
-	// Remember to return!
-	switch ev := innerEvent.Data.(type) {
+	switch event := innerEvent.Data.(type) {
 	case *slackevents.AppMentionEvent:
 		log.Println("[AppMentionEvent]")
 
-		// Trim the mention part
-		// format: <@app_id> which contains 12 characters
-		text := strings.ToLower(strings.TrimSpace(ev.Text[12:]))
-		log.Printf("Text: [%s]\n", text)
+		handleAppMentionEvent(event)
 
-		if text == paramHelp || text == "" {
-			go postSlackMessage(ev.Channel, appMentionResponseMessage)
-			return
-		}
-
-		// @app bxh <day> (default)
-		// @app bxh week
-		// @app bxh sprint
-		// @app bxh month
-		if strings.HasPrefix(text, paramBxh) {
-			param := strings.Split(text, " ")[1]
-			log.Printf("Param: %v\n", param)
-
-			nowInVietnam := timeIn(locationVietnam, time.Now())
-
-			year, month, day := nowInVietnam.Date()
-			today := Date{year, month, day}
-
-			// Default
-			from := today
-			to := today
-
-			switch param {
-			case paramWeek:
-				date := nowInVietnam
-
-				// Iterate back to Monday
-				for date.Weekday() != time.Monday {
-					date = date.AddDate(0, 0, -1)
-				}
-
-				from = Date{date.Year(), date.Month(), date.Day()}
-				break
-			case paramSprint:
-				sprintStart := sprintStartDate
-				sprintEnd := sprintStartDate.AddDate(0, 0, sprintDuration).Add(-1)
-
-				for !(nowInVietnam.After(sprintStart) && nowInVietnam.Before(sprintEnd)) {
-					sprintStart = sprintEnd.Add(1)
-					sprintEnd = sprintStart.AddDate(0, 0, sprintDuration).Add(-1)
-				}
-
-				from = Date{sprintStart.Year(), sprintStart.Month(), sprintStart.Day()}
-				break
-			case paramMonth:
-				from = Date{year, month, 1}
-				break
-			case paramYear:
-				from = Date{year, 1, 1}
-			default:
-				break
-			}
-
-			pairs := getLeaderboard(from, to)
-			if len(pairs) > 0 {
-				go postSlackMessage(ev.Channel, pairs.String())
-			} else {
-				go postSlackMessage(ev.Channel, leaderboardNoRecordFoundResponseMessage)
-			}
-			return
-		}
-
-		log.Println("Strange App Mention Event")
-		go postSlackMessage(ev.Channel, invalidAppMentionCommandResponseMessage)
 		return
 	case *slackevents.MessageEvent:
 		log.Println("[MessageEvent]")
 
-		if !verifyMessageEvent(*ev) {
-			return
-		}
+		handleMessageEvent(event)
 
-		log.Printf("Message text: %v\n", ev.Text)
-		for _, row := range strings.Split(ev.Text, "\n") {
-			log.Printf("Processing row: %s\n", row)
-			go processText(ev, row)
-		}
+		return
+	default:
+		log.Printf("Strange message event %v\n", eventsAPIEvent)
 
-		log.Println("Finish handling MessageEvent")
 		return
 	}
 
-	log.Printf("Strange message event %v\n", eventsAPIEvent)
 }
 
-// processText Process by custom text instead of entire message
-func processText(event *slackevents.MessageEvent, text string) {
+func handleAppMentionEvent(appMentionEvent *slackevents.AppMentionEvent) {
+	// Trim the mention part
+	// format: <@app_id> which contains 12 characters
+	const slackAppIdLength = 12
+	text := strings.ToLower(strings.TrimSpace(appMentionEvent.Text[slackAppIdLength:]))
+	log.Printf("Text: [%s]\n", text)
+
+	// @app help
+	if text == paramHelp || text == "" {
+		go postSlackMessage(appMentionEvent.Channel, appMentionResponseMessage)
+		return
+	}
+
+	// @app chart <day> (default)
+	// @app chart week
+	// @app chart sprint
+	// @app chart month
+	if strings.HasPrefix(text, paramChart) {
+		param := strings.Split(text, " ")[1]
+		log.Printf("Param: %v\n", param)
+
+		//	Calculate time in Vietnam
+		nowInVietnam := timeIn(locationVietnam, time.Now())
+
+		year, month, day := nowInVietnam.Date()
+		today := Date{year, month, day}
+
+		// Default
+		from := today
+		to := today
+
+		switch param {
+		case paramWeek:
+			date := nowInVietnam
+
+			// Iterate back to Monday
+			for date.Weekday() != time.Monday {
+				date = date.AddDate(0, 0, -1)
+			}
+
+			from = Date{date.Year(), date.Month(), date.Day()}
+			break
+		case paramScrumSprint:
+			sprintStart := lastRecordSprintStartDate
+			sprintEnd := lastRecordSprintStartDate.AddDate(0, 0, sprintDuration).Add(-1)
+
+			inCurrentSprintPeriod := nowInVietnam.After(sprintStart) && nowInVietnam.Before(sprintEnd)
+			for !inCurrentSprintPeriod {
+				sprintStart = sprintEnd.Add(1)
+				sprintEnd = sprintStart.AddDate(0, 0, sprintDuration).Add(-1)
+			}
+
+			from = Date{sprintStart.Year(), sprintStart.Month(), sprintStart.Day()}
+			break
+		case paramMonth:
+			from = Date{year, month, 1}
+			break
+		case paramYear:
+			from = Date{year, 1, 1}
+		default:
+			log.Printf("Strange param %s!", param)
+			return
+		}
+
+		chartRecords := getChart(from, to)
+		if len(chartRecords) > 0 {
+			go postSlackMessage(appMentionEvent.Channel, chartRecords.String())
+		} else {
+			go postSlackMessage(appMentionEvent.Channel, noRecordFoundInChartResponseMessage)
+		}
+	}
+
+	log.Println("Strange App Mention Event")
+	go postSlackMessage(appMentionEvent.Channel, invalidAppMentionCommandResponseMessage)
+}
+
+func handleMessageEvent(event *slackevents.MessageEvent) {
+	if !verifyMessageEvent(event) {
+		return
+	}
+	log.Printf("Message text: %v\n", event.Text)
+
+	for _, row := range strings.Split(event.Text, "\n") {
+		log.Printf("Processing row: %s\n", row)
+
+		go processMessageText(event, row)
+	}
+	log.Println("Finish handling MessageEvent")
+}
+
+// processMessageText Process by custom text instead of entire message
+func processMessageText(event *slackevents.MessageEvent, text string) {
 	// Get the emoji in the message
 	// return if no exact emoji found
-	numOfEmojiMatches := findNumOfEmojiIn(text)
-	if numOfEmojiMatches == 0 {
+	numEmojiMatches := countNumEmoji(text)
+	if numEmojiMatches == 0 {
 		log.Printf("No emoji %v found in message %v. Return.\n", emojiName, text)
 		return
 	}
 
 	// Find the receiver
-	receiverID := findReceiverIDIn(text)
+	receiverId := getReceiverId(text)
 
-	if receiverID == "" {
+	if receiverId == "" {
 		log.Printf("No receiver found. Return.\n")
 		return
 	}
 
 	// Get receiver information
-	receiver, err := api.GetUserInfo(receiverID)
+	receiver, err := slackClient.GetUserInfo(receiverId)
 	if err != nil {
-		log.Panicf("Error getting receiver %v info %v\n", receiverID, err)
+		log.Panicf("Error getting receiver %v info %v\n", receiverId, err)
 		return
 	}
-	printUserInfo(receiver)
+	printSlackUserInfo(receiver)
 
 	if receiver.IsBot {
 		log.Printf("Receiver %v is bot. Return.\n", receiver.Profile.RealName)
@@ -262,39 +280,39 @@ func processText(event *slackevents.MessageEvent, text string) {
 		return
 	}
 
-	// Get user who posted the message
+	// Get the user who posted the message
 	// return if error
-	user, err := api.GetUserInfo(event.User)
+	user, err := slackClient.GetUserInfo(event.User)
 	if err != nil {
 		log.Panicf("Error getting user %v info %v\n", event.User, err)
 		return
 	}
-	printUserInfo(user)
+	printSlackUserInfo(user)
 
 	// Won't accept users giving for themself
-	if user.ID == receiverID {
-		log.Printf("UserID = receiverID = %v. Return.\n", user.ID)
+	if user.ID == receiverId {
+		log.Printf("User with id %v is self-giving. Return.\n", user.ID)
 		go reactToSlackMessage(event.Channel, event.TimeStamp, emojiPray)
 		return
 	}
 
-	go restrictNumOfEmojiCanBeGivenToday(event, user, receiver, numOfEmojiMatches)
+	go checkGivingRestrictions(event, user, receiver, numEmojiMatches)
 	return
 }
 
-func getLeaderboard(from Date, to Date) PairList {
+func getChart(from Date, to Date) ChartRecords {
 	log.Printf("From: %v, to %v\n", from, to)
-	receivingSummaries := readFrom(googleSheetReceivingSummaryReadRange)
-	leaderboard := map[string]int{}
+	records := readFrom(googleSheetReceivingSummaryReadRange)
+	chart := map[string]int{}
 
-	for _, row := range receivingSummaries {
-		// Skip Grand Total row
-		if strings.Contains(fmt.Sprintf("%s %s %s %s", row[0], row[1], row[2], row[3]), "Grand Total") {
-			log.Println("Grand Total row. Skip.")
+	for _, record := range records {
+		// Skip Grand Total record
+		if strings.Contains(fmt.Sprintf("%s %s %s %s", record[0], record[1], record[2], record[3]), "Grand Total") {
+			log.Println("Grand Total record. Skip.")
 			break
 		}
 
-		receivingSummary := givingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(string)}
+		receivingSummary := givingSummary{record[0].(string), fmt.Sprintf("%s %s", record[1], record[2]), record[3].(string)}
 		date, err := time.Parse(GoogleSheetsTimeFormat, receivingSummary.Date)
 		if err != nil {
 			log.Panicf("Unable to parse date %v from Google Sheets!", receivingSummary.Date)
@@ -308,27 +326,24 @@ func getLeaderboard(from Date, to Date) PairList {
 				return nil
 			}
 
-			leaderboard[receivingSummary.Name] = total + leaderboard[receivingSummary.Name]
-			log.Printf("Leaderboard: %v\n", leaderboard)
+			chart[receivingSummary.Name] = total + chart[receivingSummary.Name]
+			log.Printf("Chart: %v\n", chart)
 		}
 	}
 
-	log.Printf("Leaderboard: %v\n", leaderboard)
-	return rank(leaderboard)
+	log.Printf("Leaderboard: %v\n", chart)
+	return rank(chart)
 }
 
-// printUserInfo Print Slack user information
-func printUserInfo(user *slack.User) {
-	log.Printf("ID: %v, Fullname: %v, Email: %v\n", user.ID, user.Profile.RealName, user.Profile.Email)
+// printSlackUserInfo Print Slack user information
+func printSlackUserInfo(user *slack.User) {
+	log.Printf("Slack User { ID: %v, Fullname: %v, Email: %v }\n", user.ID, user.Profile.RealName, user.Profile.Email)
 }
 
-// restrictNumOfEmojiCanBeGivenToday Check number of emoji user can give today
-func restrictNumOfEmojiCanBeGivenToday(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, wantToGive int) {
+// checkGivingRestrictions Check number of emoji user can give today
+func checkGivingRestrictions(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numWantToGive int) {
 	userRealName := user.Profile.RealName
 	givingSummaries := readFrom(googleSheetGivingSummaryReadRange)
-	// Is today record for user found?
-	// (did user give anything today?)
-	todayRecordFound := false
 
 	// TODO: Filter by year first
 	// maybe even month and then day
@@ -343,63 +358,68 @@ func restrictNumOfEmojiCanBeGivenToday(event *slackevents.MessageEvent, user *sl
 		givingSummary := givingSummary{row[0].(string), fmt.Sprintf("%s %s", row[1], row[2]), row[3].(string)}
 		log.Printf("Giving summary: %v, today: %v\n", givingSummary, todayInVietnam)
 
-		// todayInVietnam record
-		if userRealName == givingSummary.Name && givingSummary.Date == todayInVietnam {
+		usersTodayRecord := userRealName == givingSummary.Name && givingSummary.Date == todayInVietnam
+		if usersTodayRecord {
 			log.Printf("Today record for user %v found.\n", userRealName)
-			todayRecordFound = true
 
-			givenToday, err := strconv.Atoi(givingSummary.Total)
+			numGivenToday, err := strconv.Atoi(givingSummary.Total)
 			if err != nil {
 				log.Panicf("%v can not be convert to int\n", givingSummary.Total)
 				return
 			}
 
-			if givenToday >= maxEveryday {
-				log.Printf("User %s already gave %d today (maximum allowed: %d). Return.\n", givingSummary.Name, givenToday, maxEveryday)
+			if numGivenToday >= maxGivingPerDay {
+				log.Printf("User %s already gave %d today (maximum allowed: %d). Return.\n", givingSummary.Name, numGivenToday, maxGivingPerDay)
 				go reactToSlackMessage(event.Channel, event.TimeStamp, emojiNoGood)
+
 				return
 			}
 
-			canBeGivenToday := maxEveryday - givenToday
-			var toGive int
+			maxToGiveToday := maxGivingPerDay - numGivenToday
+			var numToGive int
 
-			if canBeGivenToday >= wantToGive {
-				toGive = wantToGive
+			if numWantToGive <= maxToGiveToday {
+				numToGive = numWantToGive
 			} else {
-				toGive = canBeGivenToday
+				numToGive = maxToGiveToday
 			}
 
-			log.Printf("Can be given today: %d, maximum to give everyday: %d,"+
+			log.Printf("Can be given today: %d, maximum to give per day: %d,"+
 				" user has given today: %d, want to give now: %d\n",
-				canBeGivenToday, maxEveryday, givenToday, wantToGive)
+				maxToGiveToday, maxGivingPerDay, numGivenToday, numWantToGive)
 
-			if toGive > 0 {
-				recordGiving(event, user, receiver, toGive)
+			if numToGive > 0 {
+				giveTaco(event, user, receiver, numToGive)
 			} else {
 				go reactToSlackMessage(event.Channel, event.TimeStamp, emojiX)
 			}
+
+			return
+		} else {
+			//	Not this row
+			continue
 		}
 	}
 
-	// No record today for user
-	log.Printf("No record found today %v for user %v. Let he/she give at most %v.\n", todayInVietnam, userRealName, maxEveryday)
-	if !todayRecordFound {
-		if wantToGive >= maxEveryday {
-			wantToGive = maxEveryday
-		}
-
-		recordGiving(event, user, receiver, wantToGive)
+	// No record today found for user
+	log.Printf("No record found today %v for user %v. Let he/she give at most %v.\n", todayInVietnam, userRealName, maxGivingPerDay)
+	if numWantToGive >= maxGivingPerDay {
+		numWantToGive = maxGivingPerDay
 	}
+
+	giveTaco(event, user, receiver, numWantToGive)
 }
 
-// recordGiving Record giving for user
+// giveTaco Record giving for user
 // write to Google Sheets and react to Slack message
-func recordGiving(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, toGive int) {
-	log.Printf("Record giving now for user %v, receiver %v, number %v\n", user, receiver, toGive)
-	go writeToGoogleSheets(event, user, receiver, toGive)
-	emoji := getNumberEmoji(toGive)
+func giveTaco(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numToGive int) {
+	log.Printf("Record giving now for user %v, receiver %v, number %v\n", user, receiver, numToGive)
 
-	for _, e := range emoji {
+	writeToGoogleSheets(event, user, receiver, numToGive)
+
+	numberEmojis := getNumberEmoji(numToGive)
+
+	for _, e := range numberEmojis {
 		go reactToSlackMessage(event.Channel, event.TimeStamp, e)
 	}
 }
@@ -411,18 +431,17 @@ func writeToGoogleSheets(event *slackevents.MessageEvent, user *slack.User, rece
 	var timestamp = timeIn(locationVietnam, toDate(strings.Split(event.TimeStamp, ".")[0]))
 	// Using Google Sheets recognizable format
 	var datetime = timestamp.Format(slackDateTimeFormat)
-	var giverName = user.Profile.RealName
-	var receiverName = receiver.Profile.RealName
+	var giverRealName = user.Profile.RealName
+	var receiverRealName = receiver.Profile.RealName
 	var message = event.Text
-	valueToWrite := []interface{}{timestamp, datetime, giverName, receiverName, toGive, message}
+	valueToWrite := []interface{}{timestamp, datetime, giverRealName, receiverRealName, toGive, message}
 	log.Printf("Value to write %v\n", valueToWrite)
 
 	go appendValue(valueToWrite)
 }
 
-// findReceiverIDIn Find id of the receiver in text message
-func findReceiverIDIn(text string) string {
-	// Slack user format: <@USER_ID>
+// getReceiverId Find id of the receiver in text message
+func getReceiverId(text string) string {
 	receivers := compiledSlackUserIDPattern.FindAllString(text, -1)
 	log.Printf("Matched receivers %v\n", receivers)
 
@@ -433,49 +452,51 @@ func findReceiverIDIn(text string) string {
 
 	// Only the first mention count as receiver
 	var receiverRaw = receivers[0]
+
+	// Slack user format: <@USER_ID>
 	return receiverRaw[2 : len(receiverRaw)-1]
 }
 
-// findNumOfEmojiIn Find number of emoji emojiName appeared in text message
-func findNumOfEmojiIn(text string) int {
-	matchedEmoji := compiledSlackEmojiPattern.FindAllString(text, -1)
-	log.Printf("Matched emoji %v in text %v\n", matchedEmoji, text)
-	return len(matchedEmoji)
+// countNumEmoji Find number of emoji emojiName appeared in text message
+func countNumEmoji(text string) int {
+	emojiMatches := compiledSlackEmojiPattern.FindAllString(text, -1)
+	log.Printf("Matched emoji %v in text %v\n", emojiMatches, text)
+	return len(emojiMatches)
 }
 
-// responseToSlackChallenge Response to Slack's URL verification challenge
-func responseToSlackChallenge(body string, w http.ResponseWriter) {
+// responseSlackChallenge Response to Slack's URL verification challenge
+func responseSlackChallenge(body string, w http.ResponseWriter) {
 	log.Println("[Slack URL Verification challenge event]")
-	var r *slackevents.ChallengeResponse
-	err := json.Unmarshal([]byte(body), &r)
+	var response *slackevents.ChallengeResponse
+	err := json.Unmarshal([]byte(body), &response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatalf("Unable to unmarshal slack URL verification challenge. Error %v\n", err)
 	}
 
 	w.Header().Set("Content-Type", "text")
-	numOfWrittenBytes, err := w.Write([]byte(r.Challenge))
+	numWrittenBytes, err := w.Write([]byte(response.Challenge))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatalf("Unable to write response challenge with error %v\n", err)
 	}
-	log.Printf("%v bytes of Slack challenge response written\n", numOfWrittenBytes)
+	log.Printf("%v bytes of Slack challenge response written\n", numWrittenBytes)
 }
 
 // verifyMessageEvent Check whether the message event is valid for processing
-func verifyMessageEvent(ev slackevents.MessageEvent) bool {
-	if ev.SubType != "" {
-		log.Printf("Event with subtype %v. Return.\n", ev.SubType)
+func verifyMessageEvent(event *slackevents.MessageEvent) bool {
+	if event.SubType != "" {
+		log.Printf("Event with subtype %v. Return.\n", event.SubType)
 		return false
 	}
 
 	// TODO: Maybe handle edited messages someday ;)
-	if ev.IsEdited() {
+	if event.IsEdited() {
 		log.Printf("Edited message. Return.\n")
 		return false
 	}
 
-	if len(ev.Text) < emojiNameLength {
+	if len(event.Text) < emojiNameLength {
 		log.Printf("Message too short. Return.\n")
 		return false
 	}
@@ -486,7 +507,7 @@ func verifyMessageEvent(ev slackevents.MessageEvent) bool {
 // postSlackMessage Post message to Slack
 func postSlackMessage(channel string, text string) {
 	var msgOptionText = slack.MsgOptionText(text, true)
-	respChannel, respTimestamp, err := api.PostMessage(channel, msgOptionText)
+	respChannel, respTimestamp, err := slackClient.PostMessage(channel, msgOptionText)
 	if err != nil {
 		log.Printf("Unable to post message to Slack with error %v\n", err)
 		return
@@ -497,47 +518,9 @@ func postSlackMessage(channel string, text string) {
 // reactToSlackMessage React to Slack message
 func reactToSlackMessage(channel string, timestamp string, emoji string) {
 	refToMessage := slack.NewRefToMessage(channel, timestamp)
-	err := api.AddReaction(emoji, refToMessage)
+	err := slackClient.AddReaction(emoji, refToMessage)
 	if err != nil {
 		log.Printf("Unable to react %v to comment %v with error %v\n", emoji, refToMessage, err)
 		return
 	}
-}
-
-var emojiTexts = map[int]string{
-	0:  "zero",
-	1:  "one",
-	2:  "two",
-	3:  "three",
-	4:  "four",
-	5:  "five",
-	6:  "six",
-	7:  "seven",
-	8:  "eight",
-	9:  "nine",
-	10: "keycap_ten",
-}
-
-// getNumberEmoji Return number of given emoji in text
-// character by character
-func getNumberEmoji(number int) []string {
-	if number < 1 {
-		return nil
-	}
-
-	var results []string
-
-	if number > 0 && number <= 10 {
-		return append(results, emojiTexts[number])
-	}
-
-	str := strconv.Itoa(number)
-
-	for _, r := range str {
-		var c = string(r)
-		n, _ := strconv.Atoi(c)
-		results = append(results, emojiTexts[n])
-	}
-
-	return results
 }

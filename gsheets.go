@@ -29,9 +29,6 @@ var spreadsheetURL = os.Getenv("SPREADSHEET_URL")
 // sheetsService Google Sheets service
 var sheetsService = getService()
 
-// GoogleSheetsTimeFormat Datetime format sent from Google Sheets
-const GoogleSheetsTimeFormat = "02-Jan 2006"
-
 // getClient Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
