@@ -12,8 +12,8 @@ import (
 const topChartEmoji = ":crown:"
 const runnerUpEmoji = ":rocket:"
 const thirdChartEmoji = ":trident:"
-const pairFormat = "*%-50s*\t\t%-5d"
-const chartFormat = "%15s\t%v"
+const pairFormat = "*%s* (%d)"
+const chartFormat = "%s %v"
 
 type Date struct {
 	Year  int

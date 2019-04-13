@@ -138,6 +138,7 @@ func handleCallbackEvent(eventsAPIEvent slackevents.EventsAPIEvent) {
 	innerEvent := eventsAPIEvent.InnerEvent
 	log.Printf("Inner event %v\n", innerEvent)
 
+	//	FIXME: It looks like Slack will send both event for AppMentionEvent events
 	switch event := innerEvent.Data.(type) {
 	case *slackevents.AppMentionEvent:
 		log.Println("[AppMentionEvent]")
@@ -195,11 +196,13 @@ func handleAppMentionEvent(appMentionEvent *slackevents.AppMentionEvent) {
 		year, month, day := nowInVietnam.Date()
 		today := Date{year, month, day}
 
-		// Default
-		from := today
+		var from Date
 		to := today
 
 		switch param {
+		case paramDay:
+			from = today
+			break
 		case paramWeek:
 			date := nowInVietnam
 
