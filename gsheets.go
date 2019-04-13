@@ -3,32 +3,36 @@ package p
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/sheets/v4"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/sheets/v4"
 )
 
 import (
 	"golang.org/x/net/context"
 )
 
-//	WriteRange Start range to write raw data
-const WriteRange = "A2"
+//	writeRange Start range to write raw data
+const writeRange = "A2"
 
-//	SpreadsheetID if of the spreadsheet
-var SpreadsheetID = os.Getenv("SPREADSHEET_ID")
+//	spreadsheetID if of the spreadsheet
+var spreadsheetID = os.Getenv("SPREADSHEET_ID")
 
-//	SpreadsheetURL Shareable link to the spreadsheet
-var SpreadsheetURL = os.Getenv("SPREADSHEET_URL")
+//	spreadsheetURL Shareable link to the spreadsheet
+var spreadsheetURL = os.Getenv("SPREADSHEET_URL")
 
-// SheetsService Google Sheets service
-var SheetsService = getService()
+// sheetsService Google Sheets service
+var sheetsService = getService()
 
-// Retrieve a token, saves the token, then returns the generated client.
+// GoogleSheetsTimeFormat Datetime format sent from Google Sheets
+const GoogleSheetsTimeFormat = "02-Jan 2006"
+
+// getClient Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
@@ -39,6 +43,7 @@ func getClient(config *oauth2.Config) *http.Client {
 		tok = getTokenFromWeb(config)
 		saveToken(tokFile, tok)
 	}
+
 	return config.Client(context.Background(), tok)
 }
 
@@ -104,7 +109,7 @@ func getService() *sheets.Service {
 
 // Read and print sample data from the sheet
 func readFrom(readRange string) [][]interface{} {
-	resp, err := SheetsService.Spreadsheets.Values.Get(SpreadsheetID, readRange).Do()
+	resp, err := sheetsService.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
 	}
@@ -112,10 +117,10 @@ func readFrom(readRange string) [][]interface{} {
 	if len(resp.Values) == 0 {
 		fmt.Println("No data found.")
 		return nil
-	} else {
-		fmt.Printf("Data found: %v\n", resp.Values)
-		return resp.Values
 	}
+
+	fmt.Printf("Data found: %v\n", resp.Values)
+	return resp.Values
 }
 
 // write Write data to default range
@@ -124,7 +129,7 @@ func appendValue(value []interface{}) {
 
 	valueRange.Values = append(valueRange.Values, value)
 
-	_, err := SheetsService.Spreadsheets.Values.Append(SpreadsheetID, WriteRange, &valueRange).ValueInputOption("USER_ENTERED").Do()
+	_, err := sheetsService.Spreadsheets.Values.Append(spreadsheetID, writeRange, &valueRange).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		log.Fatalf("Unable to write data %v to sheet. %v", value, err)
 	}

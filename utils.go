@@ -21,8 +21,8 @@ type Date struct {
 	Day   int
 }
 
-//	CountryTz Supported locations
-var CountryTz = map[string]string{
+//	countryTz Supported locations
+var countryTz = map[string]string{
 	"Hungary": "Europe/Budapest",
 	"Egypt":   "Africa/Cairo",
 	"Vietnam": "Asia/Ho_Chi_Minh",
@@ -30,7 +30,7 @@ var CountryTz = map[string]string{
 
 //	timeIn Return time in location
 func timeIn(name string, t time.Time) time.Time {
-	loc, err := time.LoadLocation(CountryTz[name])
+	loc, err := time.LoadLocation(countryTz[name])
 	if err != nil {
 		log.Panicf("Error loading location %v", name)
 	}
