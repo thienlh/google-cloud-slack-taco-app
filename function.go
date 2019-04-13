@@ -80,6 +80,7 @@ type givingSummary struct {
 
 const paramHelp = "help"
 const paramChart = "chart"
+const paramDay = "day"
 const paramWeek = "week"
 const paramScrumSprint = "sprint"
 const paramMonth = "month"
@@ -176,7 +177,16 @@ func handleAppMentionEvent(appMentionEvent *slackevents.AppMentionEvent) {
 	// @app chart sprint
 	// @app chart month
 	if strings.HasPrefix(text, paramChart) {
-		param := strings.Split(text, " ")[1]
+		//	Default param
+		param := paramDay
+		textSlices := strings.Split(text, " ")
+
+		if len(textSlices) == 2 {
+			param = textSlices[1]
+		} else {
+			//	Use default param
+		}
+
 		log.Printf("Param: %v\n", param)
 
 		//	Calculate time in Vietnam
@@ -228,22 +238,24 @@ func handleAppMentionEvent(appMentionEvent *slackevents.AppMentionEvent) {
 		} else {
 			go postSlackMessage(appMentionEvent.Channel, noRecordFoundInChartResponseMessage)
 		}
+
+		return
 	}
 
 	log.Println("Strange App Mention Event")
 	go postSlackMessage(appMentionEvent.Channel, invalidAppMentionCommandResponseMessage)
 }
 
-func handleMessageEvent(event *slackevents.MessageEvent) {
-	if !verifyMessageEvent(event) {
+func handleMessageEvent(messageEvent *slackevents.MessageEvent) {
+	if !verifyMessageEvent(messageEvent) {
 		return
 	}
-	log.Printf("Message text: %v\n", event.Text)
+	log.Printf("Message text: %v\n", messageEvent.Text)
 
-	for _, row := range strings.Split(event.Text, "\n") {
+	for _, row := range strings.Split(messageEvent.Text, "\n") {
 		log.Printf("Processing row: %s\n", row)
 
-		go processMessageText(event, row)
+		go processMessageText(messageEvent, row)
 	}
 	log.Println("Finish handling MessageEvent")
 }
@@ -296,7 +308,7 @@ func processMessageText(event *slackevents.MessageEvent, text string) {
 		return
 	}
 
-	go checkGivingRestrictions(event, user, receiver, numEmojiMatches)
+	go giveTaco(event, user, receiver, numEmojiMatches)
 	return
 }
 
@@ -331,7 +343,7 @@ func getChart(from Date, to Date) ChartRecords {
 		}
 	}
 
-	log.Printf("Leaderboard: %v\n", chart)
+	log.Printf("Chart: %v\n", chart)
 	return rank(chart)
 }
 
@@ -340,8 +352,7 @@ func printSlackUserInfo(user *slack.User) {
 	log.Printf("Slack User { ID: %v, Fullname: %v, Email: %v }\n", user.ID, user.Profile.RealName, user.Profile.Email)
 }
 
-// checkGivingRestrictions Check number of emoji user can give today
-func checkGivingRestrictions(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numWantToGive int) {
+func giveTaco(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numWantToGive int) {
 	userRealName := user.Profile.RealName
 	givingSummaries := readFrom(googleSheetGivingSummaryReadRange)
 
@@ -389,7 +400,7 @@ func checkGivingRestrictions(event *slackevents.MessageEvent, user *slack.User, 
 				maxToGiveToday, maxGivingPerDay, numGivenToday, numWantToGive)
 
 			if numToGive > 0 {
-				giveTaco(event, user, receiver, numToGive)
+				recordGiving(event, user, receiver, numToGive)
 			} else {
 				go reactToSlackMessage(event.Channel, event.TimeStamp, emojiX)
 			}
@@ -407,12 +418,12 @@ func checkGivingRestrictions(event *slackevents.MessageEvent, user *slack.User, 
 		numWantToGive = maxGivingPerDay
 	}
 
-	giveTaco(event, user, receiver, numWantToGive)
+	recordGiving(event, user, receiver, numWantToGive)
 }
 
-// giveTaco Record giving for user
+// recordGiving Record giving for user
 // write to Google Sheets and react to Slack message
-func giveTaco(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numToGive int) {
+func recordGiving(event *slackevents.MessageEvent, user *slack.User, receiver *slack.User, numToGive int) {
 	log.Printf("Record giving now for user %v, receiver %v, number %v\n", user, receiver, numToGive)
 
 	writeToGoogleSheets(event, user, receiver, numToGive)
