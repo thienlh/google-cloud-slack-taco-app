@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-const topChartEmoji = ":crown:"
-const runnerUpEmoji = ":rocket:"
-const thirdChartEmoji = ":trident:"
 const pairFormat = "*%s* (%d)"
 const chartFormat = "%s %v"
 
@@ -30,11 +27,11 @@ var countryTz = map[string]string{
 
 //	timeIn Return time in location
 func timeIn(name string, t time.Time) time.Time {
-	loc, err := time.LoadLocation(countryTz[name])
+	location, err := time.LoadLocation(countryTz[name])
 	if err != nil {
 		log.Panicf("Error loading location %v", name)
 	}
-	return t.In(loc)
+	return t.In(location)
 }
 
 // toDate Convert epoch timestamp to time.Time
@@ -43,7 +40,6 @@ func toDate(timestamp string) time.Time {
 	if err != nil {
 		log.Fatalf("Error parsing timestamp: %s", timestamp)
 	}
-
 	return time.Unix(i, 0)
 }
 
@@ -51,7 +47,6 @@ func isInRange(t time.Time, start Date, end Date) bool {
 	timeInUTC := t.In(time.UTC).Add(10000)
 	startTime := time.Date(start.Year, start.Month, start.Day, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(end.Year, end.Month, end.Day, 23, 59, 59, 999, time.UTC)
-
 	return timeInUTC.After(startTime) && timeInUTC.Before(endTime)
 }
 
@@ -66,11 +61,13 @@ func rank(m map[string]int) ChartRecords {
 	return pl
 }
 
+// Pair pair data type
 type Pair struct {
 	Key   string
 	Value int
 }
 
+// ChartRecords Represents chart records in the table
 type ChartRecords []Pair
 
 func (p ChartRecords) Len() int           { return len(p) }
@@ -81,24 +78,18 @@ func (p Pair) String() string {
 }
 func (p ChartRecords) String() string {
 	var arr []string
-
 	for _, pair := range p {
 		arr = append(arr, pair.String())
 	}
-
 	if len(arr) >= 1 {
-		//	Add some emoji
-		arr[0] = fmt.Sprintf(chartFormat, arr[0], topChartEmoji)
+		arr[0] = fmt.Sprintf(chartFormat, arr[0], ":crown:")
 	}
-
 	if len(arr) >= 2 {
-		arr[1] = fmt.Sprintf(chartFormat, arr[1], runnerUpEmoji)
+		arr[1] = fmt.Sprintf(chartFormat, arr[1], ":rocket:")
 	}
-
 	if len(arr) >= 3 {
-		arr[2] = fmt.Sprintf(chartFormat, arr[2], thirdChartEmoji)
+		arr[2] = fmt.Sprintf(chartFormat, arr[2], ":trident:")
 	}
-
 	return strings.Join(arr, "\n")
 }
 
@@ -117,25 +108,19 @@ var emojiTexts = map[int]string{
 }
 
 // getNumberEmoji Return number of given emoji in text
-// character by character
 func getNumberEmoji(number int) []string {
 	if number < 1 {
 		return nil
 	}
-
 	var results []string
-
 	if number > 0 && number <= 10 {
 		return append(results, emojiTexts[number])
 	}
-
 	str := strconv.Itoa(number)
-
 	for _, r := range str {
 		var c = string(r)
 		n, _ := strconv.Atoi(c)
 		results = append(results, emojiTexts[n])
 	}
-
 	return results
 }
